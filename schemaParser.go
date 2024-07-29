@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 )
 
@@ -190,13 +191,13 @@ func setColumnTypes(reader *csv.Reader, table *Table, headers []string) error {
 
 			value = strings.TrimSpace(value)
 
-			if existingType == "string" || len(value) == 0 {
+			if existingType == "text" || len(value) == 0 {
 				continue
 			}
 
 			detectedType := detectDataType(value)
 			if len(existingType) != 0 && existingType != detectedType {
-				column.DataType = "string"
+				column.DataType = "text"
 			} else {
 				column.DataType = detectedType
 			}
@@ -259,7 +260,7 @@ func detectDataType(content any) string {
 	err := json.Unmarshal([]byte(value), &arr)
 
 	if err != nil {
-		return "string"
+		return "text"
 	}
 
 	if len(arr) == 0 {
@@ -268,8 +269,8 @@ func detectDataType(content any) string {
 
 	firstVal := fmt.Sprintf("%v", arr[0])
 	prevType := detectBasicDataType(firstVal)
-	if len(prevType) == 0 || prevType == "string" {
-		return "[]string"
+	if len(prevType) == 0 || prevType == "text" {
+		return "text[]"
 	}
 
 	// Traversing array column
@@ -277,13 +278,13 @@ func detectDataType(content any) string {
 		subVal := fmt.Sprintf("%v", subVal)
 		detectedType := detectBasicDataType(subVal)
 		if detectedType != prevType {
-			return "[]string"
+			return "text[]"
 		} else {
 			prevType = detectedType
 		}
 	}
 
-	return "[]" + prevType
+	return prevType + "[]"
 }
 
 func detectBasicDataType(value string) string {
@@ -294,7 +295,7 @@ func detectBasicDataType(value string) string {
 
 	_, err = strconv.ParseFloat(value, 64)
 	if err == nil {
-		return "float"
+		return "real"
 	}
 
 	_, err = strconv.ParseBool(value)
@@ -312,13 +313,13 @@ func detectBasicDataType(value string) string {
 		return "time"
 	}
 
-	_, err = time.Parse(datetimeFormats["datetime"], value)
+	_, err = time.Parse(datetimeFormats["timestamptz"], value)
 	if err == nil {
-		return "datetime"
+		return "timestamptz"
 	}
 
 	if !(strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]")) {
-		return "string"
+		return "text"
 	}
 
 	return ""
@@ -356,6 +357,7 @@ func (dbSchema *DB) validateSchema() error {
 	}
 
 	basePath := dbSchema.BasePath
+	dbSchema.DB_Name = sanitize_db_label(dbSchema.DB_Name)
 
 	for tableName, table := range dbSchema.Tables {
 		if tableName != sanitize_db_label(tableName) {
@@ -389,14 +391,8 @@ func (dbSchema *DB) validateSchema() error {
 			}
 
 			if len(column.ForeignField) > 0 || len(column.ForeignTable) > 0 {
-
 				if column.ForeignTable == tableName {
 					errorMessage := fmt.Sprintf("column %s in table %s refers to same table", columnName, tableName)
-					return errors.New(errorMessage)
-				}
-
-				if strings.HasPrefix(column.DataType, "[]") {
-					errorMessage := fmt.Sprintf("foreign key column %s in table %s is an array", columnName, tableName)
 					return errors.New(errorMessage)
 				}
 
@@ -441,6 +437,7 @@ func (dbSchema *DB) validateSchema() error {
 				errorMessage := fmt.Sprintf("invalid default value for column %s in table %s:\n%v", columnName, tableName, err)
 				return errors.New(errorMessage)
 			}
+			table.Columns[columnName] = column
 		}
 
 		// Primary key
@@ -448,6 +445,58 @@ func (dbSchema *DB) validateSchema() error {
 			errorMessage := fmt.Sprintf("invalid primary key %s in table %s", table.PrimaryKey, tableName)
 			return errors.New(errorMessage)
 		}
+
+		dbSchema.Tables[tableName] = table
+	}
+
+	return nil
+}
+
+func (dbSchema *DB) createStatements() error {
+	fileName := "create.tmpl"
+
+	basePath, err := os.Getwd()
+
+	if err != nil {
+		return err
+	}
+
+	templatePath := filepath.Join(basePath, "templates", "create.tmpl")
+
+	template, err := template.New(fileName).ParseFiles(templatePath)
+
+	if err != nil {
+		return err
+	}
+
+	// CREATE DATABASE
+	if err := template.ExecuteTemplate(os.Stdout, "DB", dbSchema.DB_Name); err != nil {
+		return err
+	}
+
+	// CREATE ARRAY VALIDATORS
+	datatypes := map[string]bool{}
+	for _, table := range dbSchema.Tables {
+		for _, column := range table.Columns {
+			datatype := column.DataType
+			isArray := strings.HasSuffix(datatype, "[]")
+			datatype = strings.TrimSuffix(datatype, "[]")
+
+			if isArray && !datatypes[datatype] && (column.minArrLen > 0 ||
+				column.maxArrLen > 0 ||
+				column.minIndividual != nil ||
+				column.maxIndividual != nil) {
+				if err := template.ExecuteTemplate(os.Stdout, "array_validator", datatype); err != nil {
+					return err
+				}
+				datatypes[datatype] = true
+			}
+		}
+	}
+
+	// TABLES
+	if err := template.ExecuteTemplate(os.Stdout, "Tables", dbSchema.Tables); err != nil {
+		return err
 	}
 
 	return nil

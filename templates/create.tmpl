@@ -1,0 +1,96 @@
+{{- define "DB" -}}
+CREATE DATABASE {{.}}
+{{ end }}
+
+{{- define "Tables" -}}
+
+{{ range $tableName, $table := . }}
+
+{{- "\n\n" -}}
+
+    CREATE TABLE "{{- $tableName -}}" {{- " " -}}
+
+    {{- range $columnName, $column := $table.Columns -}}
+
+        "{{- $columnName -}}" {{ $column.DataType -}}
+
+        {{- if $column.Default -}}
+            {{- " DEFAULT " -}} {{ $column.Default }}
+        {{- end -}}
+
+        {{- if eq $columnName $table.PrimaryKey -}}
+            {{- " PRIMARY KEY" -}}
+
+        {{- else -}}
+
+            {{- if $column.NotNull -}}
+            {{- " NOT NULL" -}}
+            {{- end -}}
+
+            {{- if $column.Unique -}}
+            {{- " UNIQUE" -}}
+            {{- end -}}
+
+        {{- end -}}
+    
+       
+
+        {{ ", " }} 
+
+    {{- end -}}
+
+{{end}}
+{{end}}
+
+{{- define "array_validator" }}
+CREATE validate_{{.}}_arr(
+    arr {{.}}[], 
+    min_arr_len integer DEFAULT NULL,
+    max_arr_len integer DEFAULT NULL,
+    min_ind {{.}} DEFAULT NULL, 
+    max_ind {{.}} DEFAULT NULL,
+    enum_arr {{.}}[] DEFAUT NULL)
+RETURNS boolean AS $$
+DECLARE
+    val {{.}};
+BEGIN
+    IF min_arr_len IS NOT NULL AND array_length(arr, 1) < min_arr_len THEN
+        RETURN FALSE;
+    END IF;
+
+    IF max_arr_len IS NOT NULL AND array_length(arr, 1) > max_arr_len THEN
+        RETURN FALSE;
+    END IF;
+
+    FOREACH val IN ARRAY arr LOOP
+        {{ if eq . "text" -}}
+        IF min_ind IS NOT NULL AND LENGTH(val::text) < min_ind THEN
+            RETURN FALSE;
+        END IF;
+
+        IF max_ind IS NOT NULL AND LENGTH(val::text) > max_ind THEN
+            RETURN FALSE;
+        END IF;
+
+        IF enum_arr IS NOT NULL AND val::text NOT IN (SELECT * FROM unnest(enum_arr)) THEN
+            RETURN FALSE;
+        END IF;
+
+        {{- else -}}
+        IF min_ind IS NOT NULL AND val < min_ind THEN
+            RETURN FALSE;
+        END IF;
+
+        IF max_ind IS NOT NULL AND val > max_ind THEN
+            RETURN FALSE;
+        END IF;
+
+        IF enum_arr IS NOT NULL AND val NOT IN (SELECT * FROM unnest(enum_arr)) THEN
+            RETURN FALSE;
+        END IF;
+        {{- end }}
+    END LOOP;
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
+{{ end }}

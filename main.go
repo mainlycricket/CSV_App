@@ -28,5 +28,10 @@ func main() {
 		}
 
 		fmt.Println("Schema Validated!")
+
+		err = dbSchema.createStatements()
+		if err != nil {
+			log.Fatalf("error while creating sql statements: %v", err)
+		}
 	}
 }

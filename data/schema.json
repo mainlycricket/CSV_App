@@ -18,7 +18,7 @@
           "foreignField": ""
         },
         "Bool_Arr": {
-          "dataType": "[]boolean",
+          "dataType": "boolean[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -40,7 +40,7 @@
           "foreignField": ""
         },
         "DateTime": {
-          "dataType": "datetime",
+          "dataType": "timestamptz",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -51,7 +51,7 @@
           "foreignField": ""
         },
         "Date_arr": {
-          "dataType": "[]date",
+          "dataType": "date[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -62,7 +62,7 @@
           "foreignField": ""
         },
         "Datetime_Arr": {
-          "dataType": "[]datetime",
+          "dataType": "timestamptz[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -73,7 +73,7 @@
           "foreignField": ""
         },
         "Float": {
-          "dataType": "float",
+          "dataType": "real",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -84,7 +84,7 @@
           "foreignField": ""
         },
         "Float_arr": {
-          "dataType": "[]float",
+          "dataType": "real[]",
           "notNull": false,
           "unique": false,
           "min": "2, 4",
@@ -106,7 +106,7 @@
           "foreignField": ""
         },
         "Int_Arr": {
-          "dataType": "[]integer",
+          "dataType": "integer[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -117,7 +117,7 @@
           "foreignField": ""
         },
         "Str_Arr": {
-          "dataType": "[]string",
+          "dataType": "text[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -128,7 +128,7 @@
           "foreignField": ""
         },
         "String": {
-          "dataType": "string",
+          "dataType": "text",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -150,7 +150,7 @@
           "foreignField": ""
         },
         "Time_Arr": {
-          "dataType": "[]time",
+          "dataType": "time[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -174,11 +174,11 @@
           "max": "",
           "default": null,
           "enums": null,
-          "foreignTable": "subjects",
+          "foreignTable": "",
           "foreignField": ""
         },
         "Branch_Name": {
-          "dataType": "string",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "min": "",
@@ -200,7 +200,7 @@
           "foreignField": "Course_Id"
         },
         "Teachers": {
-          "dataType": "[]string",
+          "dataType": "text[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -228,7 +228,7 @@
           "foreignField": ""
         },
         "Course_Name": {
-          "dataType": "string",
+          "dataType": "text",
           "notNull": true,
           "unique": true,
           "min": "",
@@ -278,7 +278,7 @@
           "foreignField": "Course_Id"
         },
         "Student_Father": {
-          "dataType": "string",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "min": "",
@@ -300,7 +300,7 @@
           "foreignField": ""
         },
         "Student_Name": {
-          "dataType": "string",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "min": "",
@@ -339,7 +339,7 @@
           "foreignField": ""
         },
         "Subject_Name": {
-          "dataType": "string",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "min": "",

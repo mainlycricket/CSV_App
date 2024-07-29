@@ -9,6 +9,43 @@
 - datetime
 - array of these primitive types
 
+```sql
+CREATE OR REPLACE FUNCTION validate_time_arr(time[], min_arr, max_arr, min_ind, max_ind)
+RETURNS boolean AS $$
+DECLARE
+    t time;
+BEGIN
+	IF array_length($1, 1) < min_arr OR array_length($1, 1) > max_arr THEN
+		RETURN FALSE;
+	END IF;
+    FOREACH t IN ARRAY $1 LOOP
+        IF t < min_ind OR t > max_ind THEN
+            RETURN FALSE;
+        END IF;
+    END LOOP;
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE "AllTypes" (
+	"ID" serial PRIMARY KEY,
+	"Int_" integer DEFAULT 1 CHECK("Int_" >= 1 AND "Int_" <= 50),
+	"int_arr" integer[] DEFAULT array[1, 2, 3]::integer[],
+	"Float_" real DEFAULT 4.3 CHECK ("Float_" IN (4.3, 5.1)),
+	"Float_arr" real[] DEFAULT array[3.4]::real[],
+	"Bool_" bool DEFAULT false,
+	"Bool_arr" bool[] DEFAULT array[true, false]::bool[],
+	"String" text DEFAULT 'text' REFERENCES "DataTypeTest"("String") CHECK(LENGTH("String") > 1 AND LENGTH("String") < 8),
+	"String_arr" text[] DEFAULT array['text1', 'text2']::text[],
+	"Date_" date DEFAULT '2024-01-01',
+	"Date_Arr" date[] DEFAULT array['2024-07-01']::date[],
+	"Time_" time DEFAULT '13:45:59',
+	"Time_arr" time[] DEFAULT array['10:00:00']::time[] CHECK(validate_time_arr("Time_arr")),
+	"Datetime" timestamptz DEFAULT '2024-07-01T12:30:00+05:30',
+	"Datetime_arr" timestamptz[] DEFAULT array['2024-07-01T12:30:00+05:30']::timestamptz[]
+);
+```
+
 ### Schema Creation
 
 - No validation
@@ -20,7 +57,6 @@
 ### Column Constraints
 
 - Composite Primary Keys are not allowed
-- Array columns can't be primary keys
 
 #### Min & Max
 

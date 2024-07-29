@@ -13,19 +13,19 @@ import (
 
 var basicTypes = map[string]interface{}{
 	"integer": int(0),
-	"float":   float64(0),
-	"string":  "",
+	"real":    float64(0),
+	"text":    "",
 	"boolean": false,
 }
 
 var datetimeFormats = map[string]string{
-	"date":     time.DateOnly, // 2024-01-01
-	"time":     time.TimeOnly, // 14:30:00
-	"datetime": time.RFC3339,  // 2024-07-01T12:30:00+05:30
+	"date":        time.DateOnly, // 2024-01-01
+	"time":        time.TimeOnly, // 14:30:00
+	"timestamptz": time.RFC3339,  // 2024-07-01T12:30:00+05:30
 }
 
 var typeConversionFuncs = map[string]func(string) (any, error){
-	"string": func(value string) (any, error) {
+	"text": func(value string) (any, error) {
 		if len(value) == 0 {
 			return nil, nil
 		}
@@ -37,7 +37,7 @@ var typeConversionFuncs = map[string]func(string) (any, error){
 		}
 		return strconv.Atoi(value)
 	},
-	"float": func(value string) (any, error) {
+	"real": func(value string) (any, error) {
 		if len(value) == 0 {
 			return nil, nil
 		}
@@ -74,17 +74,17 @@ var typeConversionFuncs = map[string]func(string) (any, error){
 		}
 		return time.Parse(datetimeFormats["time"], value)
 	},
-	"datetime": func(value string) (any, error) {
+	"timestamptz": func(value string) (any, error) {
 		if len(value) == 0 {
 			return nil, nil
 		}
-		return time.Parse(datetimeFormats["datetime"], value)
+		return time.Parse(datetimeFormats["timestamptz"], value)
 	},
 }
 
 // used to validate Column.DataType
 func isValidTypeName(datatype string) bool {
-	datatype = strings.TrimPrefix(datatype, "[]")
+	datatype = strings.TrimSuffix(datatype, "[]")
 	_, isBasic := basicTypes[datatype]
 	_, isTime := datetimeFormats[datatype]
 	return isBasic || isTime
@@ -96,7 +96,7 @@ func (column *Column) setMinMaxConstraint() error {
 	min := strings.TrimSpace(column.Min)
 	max := strings.TrimSpace(column.Max)
 
-	if strings.HasPrefix(datatype, "[]") {
+	if strings.HasSuffix(datatype, "[]") {
 		minArr := strings.SplitN(min, ",", 2)
 		maxArr := strings.SplitN(max, ",", 2)
 
@@ -134,7 +134,7 @@ func (column *Column) setMinMaxConstraint() error {
 			max = strings.TrimSpace(maxArr[1])
 		}
 
-		datatype = datatype[2:]
+		datatype = strings.TrimSuffix(datatype, "[]")
 	}
 
 	// Individual Constraints
@@ -143,7 +143,7 @@ func (column *Column) setMinMaxConstraint() error {
 		return errors.New("individual boolean values can't have min/max constraints")
 	}
 
-	if datatype == "string" {
+	if datatype == "text" {
 		datatype = "positiveInt"
 	}
 
@@ -171,7 +171,7 @@ func (column *Column) setMinMaxConstraint() error {
 
 // Individual elements are validated for array types
 func (column *Column) validateEnums() error {
-	datatype := strings.TrimPrefix(column.DataType, "[]")
+	datatype := strings.TrimSuffix(column.DataType, "[]")
 
 	for _, value := range column.Enums {
 		interfaceVal, ok := validateValueByType(value, datatype)
@@ -184,6 +184,8 @@ func (column *Column) validateEnums() error {
 		if err := column.validateValueByMinMax(interfaceVal); err != nil {
 			return err
 		}
+
+		column.enumMap[interfaceVal] = true
 	}
 
 	return nil
@@ -233,9 +235,9 @@ func validateValueByType(value any, datatype string) (any, bool) {
 	switch datatype {
 	case "integer":
 		parsed, ok = convertedInterface.(int)
-	case "float":
+	case "real":
 		parsed, ok = convertedInterface.(float64)
-	case "string":
+	case "text":
 		parsed, ok = convertedInterface.(string)
 	case "boolean":
 		parsed, ok = convertedInterface.(bool)
@@ -243,7 +245,7 @@ func validateValueByType(value any, datatype string) (any, bool) {
 		parsed, ok = convertedInterface.(time.Time)
 	case "time":
 		parsed, ok = convertedInterface.(time.Time)
-	case "datetime":
+	case "timestamptz":
 		parsed, ok = convertedInterface.(time.Time)
 	case "positiveInt":
 		parsed, ok := convertedInterface.(int)
@@ -257,8 +259,8 @@ func validateValueByType(value any, datatype string) (any, bool) {
 }
 
 func (column *Column) validateValueByConstraints(value any) (any, error) {
-	if strings.HasPrefix(column.DataType, "[]") {
-		datatype := column.DataType[2:]
+	if strings.HasSuffix(column.DataType, "[]") {
+		datatype := strings.TrimSuffix(column.DataType, "[]")
 
 		interfaceArr, err := column.validateValArrLen(value)
 		if err != nil {
@@ -309,7 +311,7 @@ func (column *Column) validateValArrLen(value any) ([]any, error) {
 	}
 
 	if column.minArrLen != 0 {
-		res, ok := compareTypeValues(column.minArrLen, len(interfaceArr), "integer")
+		res, ok := compareTypeValues(len(interfaceArr), column.minArrLen, "integer")
 		if !ok || res == -1 {
 			errorMessage := fmt.Sprintf("need at least %v elements in array", column.minArrLen)
 			return nil, errors.New(errorMessage)
@@ -317,7 +319,7 @@ func (column *Column) validateValArrLen(value any) ([]any, error) {
 	}
 
 	if column.maxArrLen != 0 {
-		res, ok := compareTypeValues(column.maxArrLen, len(interfaceArr), "integer")
+		res, ok := compareTypeValues(len(interfaceArr), column.maxArrLen, "integer")
 		if !ok || res == 1 {
 			errorMessage := fmt.Sprintf("need at most %v elements in array", column.maxArrLen)
 			return nil, errors.New(errorMessage)
@@ -329,7 +331,7 @@ func (column *Column) validateValArrLen(value any) ([]any, error) {
 
 // single value
 func (column *Column) validateValueByMinMax(value any) error {
-	datatype := strings.TrimPrefix(column.DataType, "[]")
+	datatype := strings.TrimSuffix(column.DataType, "[]")
 
 	if column.minIndividual != nil {
 		res, ok := compareTypeValues(value, column.minIndividual, datatype)
@@ -350,24 +352,17 @@ func (column *Column) validateValueByMinMax(value any) error {
 
 // single value
 func (column *Column) validateValueByEnum(value any) error {
-	datatype := strings.TrimPrefix(column.DataType, "[]")
-
-	if len(column.Enums) == 0 {
+	if len(column.enumMap) == 0 {
 		return nil
 	}
 
-	for _, enumVal := range column.Enums {
-		res, ok := compareTypeValues(enumVal, value, datatype)
-		if !ok {
-			return errors.New("can't compare values")
-		}
-		if res == 0 {
-			return nil
-		}
+	_, ok := column.enumMap[value]
+	if !ok {
+		errorMessage := fmt.Sprintf("value %v not present in enum", value)
+		return errors.New(errorMessage)
 	}
 
-	errorMessage := fmt.Sprintf("value %v not present in enum", value)
-	return errors.New(errorMessage)
+	return nil
 }
 
 /*
@@ -377,7 +372,7 @@ strings are compared by length.
 */
 func compareTypeValues(a, b any, datatype string) (int, bool) {
 	switch datatype {
-	case "string":
+	case "text":
 		parsedA, ok := a.(string)
 		if !ok {
 			return 0, false
@@ -438,7 +433,7 @@ func compareTypeValues(a, b any, datatype string) (int, bool) {
 
 		return 0, true
 
-	case "float":
+	case "real":
 		parsedA, ok := a.(float64)
 		if !ok {
 			return 0, false
@@ -458,7 +453,7 @@ func compareTypeValues(a, b any, datatype string) (int, bool) {
 		}
 	}
 
-	if datatype == "date" || datatype == "time" || datatype == "datetime" {
+	if datatype == "date" || datatype == "time" || datatype == "timestamptz" {
 		parsedA, ok := a.(time.Time)
 		if !ok {
 			return 0, false

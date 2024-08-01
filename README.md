@@ -9,21 +9,54 @@
 - datetime
 - array of these primitive types
 
+```bash
+psql -h localhost -U postgres -c 'CREATE DATABASE "CSV_App"'
+psql -h localhost -U postgres -d "CSV_App" -f db.sql
+```
+
 ```sql
-CREATE OR REPLACE FUNCTION validate_time_arr(time[], min_arr, max_arr, min_ind, max_ind)
-RETURNS boolean AS $$
+CREATE FUNCTION validate_integer_arr(
+    arr integer[] DEFAULT NULL,
+    not_null boolean DEFAULT FALSE,
+    min_arr_len integer DEFAULT NULL,
+    max_arr_len integer DEFAULT NULL,
+    min_ind integer DEFAULT NULL, 
+    max_ind integer DEFAULT NULL,
+    enum_arr integer[] DEFAULT NULL)
+RETURNS text AS $$
 DECLARE
-    t time;
+    val integer;
 BEGIN
-	IF array_length($1, 1) < min_arr OR array_length($1, 1) > max_arr THEN
-		RETURN FALSE;
-	END IF;
-    FOREACH t IN ARRAY $1 LOOP
-        IF t < min_ind OR t > max_ind THEN
-            RETURN FALSE;
+    IF arr IS NULL AND not_null THEN
+        RETURN 'Empty Array';
+    END IF;
+
+    IF arr IS NULL THEN
+        RETURN '';
+    END IF;
+
+    IF min_arr_len IS NOT NULL AND array_length(arr, 1) < min_arr_len THEN
+        RETURN FORMAT('Array length should be at least %s', min_arr_len);
+    END IF;
+
+    IF max_arr_len IS NOT NULL AND array_length(arr, 1) > max_arr_len THEN
+        RETURN FORMAT('Array length should be at most %s', max_arr_len);
+    END IF;
+
+    FOREACH val IN ARRAY arr LOOP
+        IF min_ind IS NOT NULL AND val < min_ind THEN
+            RETURN FORMAT('Each element value should be at least %s', max_ind);
+        END IF;
+
+        IF max_ind IS NOT NULL AND val > max_ind THEN
+            RETURN FORMAT('Each element value should be at most %s', max_ind);
+        END IF;
+
+        IF enum_arr IS NOT NULL AND val NOT IN (SELECT * FROM unnest(enum_arr)) THEN
+            RETURN FORMAT('%s element not present in enums', val);
         END IF;
     END LOOP;
-    RETURN TRUE;
+    RETURN '';
 END;
 $$ LANGUAGE plpgsql;
 
@@ -44,6 +77,26 @@ CREATE TABLE "AllTypes" (
 	"Datetime" timestamptz DEFAULT '2024-07-01T12:30:00+05:30',
 	"Datetime_arr" timestamptz[] DEFAULT array['2024-07-01T12:30:00+05:30']::timestamptz[]
 );
+
+-- Trigger Function Validator
+CREATE OR REPLACE FUNCTION validate_TypeTest_trigger()
+RETURNS TRIGGER AS $$
+DECLARE
+res TEXT;
+BEGIN
+	res := validate_integer_arr(NEW."Int_Arr", false, 2, 2, 4, 5, NULL);
+    IF res != '' THEN
+        RAISE EXCEPTION 'Error in "Int_Arr": %', res;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Final Trigger
+CREATE TRIGGER validate_table_TypeTest_trigger
+BEFORE INSERT OR UPDATE ON "TypeTest"
+FOR EACH ROW
+EXECUTE FUNCTION validate_TypeTest_trigger();
 ```
 
 ### Schema Creation

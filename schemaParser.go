@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -461,16 +462,37 @@ func (dbSchema *DB) createStatements() error {
 		return err
 	}
 
+	funcs := template.FuncMap{
+		"HasSuffix":                strings.HasSuffix,
+		"TrimSuffix":               strings.TrimSuffix,
+		"templateValue":            templateValue,
+		"decrease":                 decrease,
+		"getArrayValidatorArgs":    getArrayValidatorArgs,
+		"templateCheckConstraints": templateCheckConstraints,
+	}
+
 	templatePath := filepath.Join(basePath, "templates", "create.tmpl")
 
-	template, err := template.New(fileName).ParseFiles(templatePath)
+	template, err := template.New(fileName).Funcs(funcs).ParseFiles(templatePath)
 
 	if err != nil {
 		return err
 	}
 
-	// CREATE DATABASE
-	if err := template.ExecuteTemplate(os.Stdout, "DB", dbSchema.DB_Name); err != nil {
+	fp, err := os.Create("db.sql")
+	if err != nil {
+		return err
+	}
+
+	buffer := bufio.NewWriter(fp)
+
+	// TABLES
+	if err := template.ExecuteTemplate(buffer, "Tables", dbSchema.Tables); err != nil {
+		return err
+	}
+
+	// Foreign Keys
+	if err := template.ExecuteTemplate(buffer, "ForeignKeys", dbSchema.Tables); err != nil {
 		return err
 	}
 
@@ -485,8 +507,9 @@ func (dbSchema *DB) createStatements() error {
 			if isArray && !datatypes[datatype] && (column.minArrLen > 0 ||
 				column.maxArrLen > 0 ||
 				column.minIndividual != nil ||
-				column.maxIndividual != nil) {
-				if err := template.ExecuteTemplate(os.Stdout, "array_validator", datatype); err != nil {
+				column.maxIndividual != nil ||
+				len(column.Enums) > 0) {
+				if err := template.ExecuteTemplate(buffer, "array_validator_function", datatype); err != nil {
 					return err
 				}
 				datatypes[datatype] = true
@@ -494,10 +517,15 @@ func (dbSchema *DB) createStatements() error {
 		}
 	}
 
-	// TABLES
-	if err := template.ExecuteTemplate(os.Stdout, "Tables", dbSchema.Tables); err != nil {
+	// Table Validator Trigger Functions
+	if err := template.ExecuteTemplate(buffer, "TableValidatorTrigger", dbSchema.Tables); err != nil {
 		return err
 	}
+
+	if err := buffer.Flush(); err != nil {
+		return err
+	}
+	fp.Close()
 
 	return nil
 }

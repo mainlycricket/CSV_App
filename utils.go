@@ -93,8 +93,10 @@ func isValidTypeName(datatype string) bool {
 // validates and sets min max constraints (array & individual)
 func (column *Column) setMinMaxConstraint() error {
 	datatype := strings.TrimSpace(column.DataType)
-	min := strings.TrimSpace(column.Min)
-	max := strings.TrimSpace(column.Max)
+	column.Min = strings.TrimSpace(column.Min)
+	column.Max = strings.TrimSpace(column.Max)
+	min := column.Min
+	max := column.Max
 
 	if strings.HasSuffix(datatype, "[]") {
 		minArr := strings.SplitN(min, ",", 2)
@@ -172,10 +174,11 @@ func (column *Column) setMinMaxConstraint() error {
 // Individual elements are validated for array types
 func (column *Column) validateEnums() error {
 	datatype := strings.TrimSuffix(column.DataType, "[]")
+	column.enumMap = make(map[any]bool)
 
-	for _, value := range column.Enums {
+	for idx, value := range column.Enums {
 		interfaceVal, ok := validateValueByType(value, datatype)
-
+		column.Enums[idx] = interfaceVal
 		if !ok {
 			errorMessage := fmt.Sprintf("%v is not of %v datatype", value, datatype)
 			return errors.New(errorMessage)
@@ -267,20 +270,22 @@ func (column *Column) validateValueByConstraints(value any) (any, error) {
 			return nil, err
 		}
 
-		for _, value := range interfaceArr {
-			_, ok := validateValueByType(value, datatype)
+		for idx, value := range interfaceArr {
+			interfaceVal, ok := validateValueByType(value, datatype)
 			if !ok {
 				errorMessage := fmt.Sprintf("%v is not of %v datatype", value, column.DataType)
 				return nil, errors.New(errorMessage)
 			}
 
-			if err := column.validateValueByMinMax(value); err != nil {
+			if err := column.validateValueByMinMax(interfaceVal); err != nil {
 				return nil, err
 			}
 
-			if err := column.validateValueByEnum(value); err != nil {
+			if err := column.validateValueByEnum(interfaceVal); err != nil {
 				return nil, err
 			}
+
+			interfaceArr[idx] = interfaceVal
 		}
 
 		return interfaceArr, nil
@@ -474,6 +479,110 @@ func compareTypeValues(a, b any, datatype string) (int, bool) {
 	}
 
 	return 0, false
+}
+
+// For Normal Variables
+func templateCheckConstraints(column Column, columnName string) string {
+	args := []string{} // Min, Max, Enum
+
+	if column.minIndividual != nil {
+		formatted := templateValue(column.minIndividual, column.DataType)
+		args = append(args, fmt.Sprintf("\"%v\" > %v", columnName, formatted))
+	}
+
+	if column.maxIndividual != nil {
+		formatted := templateValue(column.maxIndividual, column.DataType)
+		args = append(args, fmt.Sprintf("\"%v\" < %v", columnName, formatted))
+	}
+
+	if len(column.Enums) > 0 {
+		formatted := templateValue(column.Enums, column.DataType+"[]")
+		args = append(args, fmt.Sprintf("\"%v\" IN (%v)", columnName, formatted))
+	}
+
+	if len(args) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf(" CHECK ( %v )", strings.Join(args, " AND "))
+}
+
+func templateValue(value any, datatype string) string {
+	if datatype == "integer" || datatype == "real" || datatype == "bool" {
+		return fmt.Sprintf("%v", value)
+	}
+
+	if datatype == "text" || datatype == "date" || datatype == "time" || datatype == "timestamptz" {
+		return fmt.Sprintf("'%v'", value)
+	}
+
+	arr, ok := value.([]any)
+	if !ok {
+		return ""
+	}
+
+	datatype = strings.TrimSuffix(datatype, "[]")
+	values := []string{}
+
+	for _, item := range arr {
+		formatted := fmt.Sprintf("'%v'", item)
+
+		if datatype == "integer" || datatype == "real" || datatype == "bool" {
+			formatted = fmt.Sprintf("%v", item)
+		}
+
+		values = append(values, formatted)
+	}
+
+	return "array[" + strings.Join(values, ", ") + "]::" + datatype + "[]"
+}
+
+func getArrayValidatorArgs(column Column) string {
+	if !strings.HasSuffix(column.DataType, "[]") || (column.minArrLen == 0 &&
+		column.maxArrLen == 0 &&
+		column.minIndividual == nil &&
+		column.maxIndividual == nil &&
+		len(column.Enums) == 0) {
+		return ""
+	}
+
+	res := []string{"false", "NULL", "NULL", "NULL", "NULL", "NULL"}
+	if column.NotNull {
+		res[0] = "true"
+	}
+
+	datatype := strings.TrimSuffix(column.DataType, "[]")
+
+	if column.minArrLen > 0 {
+		min_arr := templateValue(column.minArrLen, "integer")
+		res = append(res, min_arr)
+	}
+
+	if column.maxArrLen > 0 {
+		max_arr := templateValue(column.maxArrLen, "integer")
+		res = append(res, max_arr)
+	}
+
+	if column.minIndividual != nil {
+		min_ind := templateValue(column.minIndividual, datatype)
+		res = append(res, min_ind)
+	}
+
+	if column.maxIndividual != nil {
+		max_ind := templateValue(column.maxIndividual, datatype)
+		res = append(res, max_ind)
+	}
+
+	if len(column.Enums) > 0 {
+		enums := templateValue(column.Enums, datatype+"[]")
+		res = append(res, enums)
+	}
+
+	return strings.Join(res, ", ")
+}
+
+func decrease(x int) int {
+	return x - 1
 }
 
 func sanitize_db_label(text string) string {

@@ -27,4 +27,6 @@ type Column struct {
 	minArrLen     int // 0 indicates unset
 	maxArrLen     int // 0 indicates unset
 	enumMap       map[any]bool
+	values        map[string]bool // to check unique values
+	lookup        map[string]int  // for foreign look up
 }

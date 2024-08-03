@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -12,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"text/template"
 	"time"
 )
 
@@ -419,6 +417,8 @@ func (dbSchema *DB) validateSchema() error {
 					errorMessage := fmt.Sprintf("referenced column by %s column in %s table isn't of %s datatype", columnName, tableName, column.DataType)
 					return errors.New(errorMessage)
 				}
+
+				column.lookup = make(map[string]int)
 			}
 
 			// Set Min, Max Constraints
@@ -438,6 +438,16 @@ func (dbSchema *DB) validateSchema() error {
 				errorMessage := fmt.Sprintf("invalid default value for column %s in table %s:\n%v", columnName, tableName, err)
 				return errors.New(errorMessage)
 			}
+
+			// unqiue
+			if column.Unique {
+				if column.Default != nil {
+					errorMessage := fmt.Sprintf("unique column %s has a default value in table %s", columnName, tableName)
+					return errors.New(errorMessage)
+				}
+				column.values = make(map[string]bool)
+			}
+
 			table.Columns[columnName] = column
 		}
 
@@ -449,83 +459,6 @@ func (dbSchema *DB) validateSchema() error {
 
 		dbSchema.Tables[tableName] = table
 	}
-
-	return nil
-}
-
-func (dbSchema *DB) createStatements() error {
-	fileName := "create.tmpl"
-
-	basePath, err := os.Getwd()
-
-	if err != nil {
-		return err
-	}
-
-	funcs := template.FuncMap{
-		"HasSuffix":                strings.HasSuffix,
-		"TrimSuffix":               strings.TrimSuffix,
-		"templateValue":            templateValue,
-		"decrease":                 decrease,
-		"getArrayValidatorArgs":    getArrayValidatorArgs,
-		"templateCheckConstraints": templateCheckConstraints,
-	}
-
-	templatePath := filepath.Join(basePath, "templates", "create.tmpl")
-
-	template, err := template.New(fileName).Funcs(funcs).ParseFiles(templatePath)
-
-	if err != nil {
-		return err
-	}
-
-	fp, err := os.Create("db.sql")
-	if err != nil {
-		return err
-	}
-
-	buffer := bufio.NewWriter(fp)
-
-	// TABLES
-	if err := template.ExecuteTemplate(buffer, "Tables", dbSchema.Tables); err != nil {
-		return err
-	}
-
-	// Foreign Keys
-	if err := template.ExecuteTemplate(buffer, "ForeignKeys", dbSchema.Tables); err != nil {
-		return err
-	}
-
-	// CREATE ARRAY VALIDATORS
-	datatypes := map[string]bool{}
-	for _, table := range dbSchema.Tables {
-		for _, column := range table.Columns {
-			datatype := column.DataType
-			isArray := strings.HasSuffix(datatype, "[]")
-			datatype = strings.TrimSuffix(datatype, "[]")
-
-			if isArray && !datatypes[datatype] && (column.minArrLen > 0 ||
-				column.maxArrLen > 0 ||
-				column.minIndividual != nil ||
-				column.maxIndividual != nil ||
-				len(column.Enums) > 0) {
-				if err := template.ExecuteTemplate(buffer, "array_validator_function", datatype); err != nil {
-					return err
-				}
-				datatypes[datatype] = true
-			}
-		}
-	}
-
-	// Table Validator Trigger Functions
-	if err := template.ExecuteTemplate(buffer, "TableValidatorTrigger", dbSchema.Tables); err != nil {
-		return err
-	}
-
-	if err := buffer.Flush(); err != nil {
-		return err
-	}
-	fp.Close()
 
 	return nil
 }

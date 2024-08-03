@@ -29,9 +29,23 @@ func main() {
 
 		fmt.Println("Schema Validated!")
 
-		err = dbSchema.createStatements()
+		insertionBuffer, err := dbSchema.dataInsertion()
+		if err != nil {
+			log.Fatalf("error while data insertion: %v", err)
+		}
+
+		createBuffer, err := dbSchema.createStatements()
 		if err != nil {
 			log.Fatalf("error while creating sql statements: %v", err)
+		}
+
+		foreignBuffer, err := dbSchema.foreignKeyStatements()
+		if err != nil {
+			log.Fatalf("error while adding foreign key constriants: %v", err)
+		}
+
+		if err := writeFile("db.sql", createBuffer, insertionBuffer, foreignBuffer); err != nil {
+			log.Fatalf("error while creating db.sql: %v", err)
 		}
 	}
 }

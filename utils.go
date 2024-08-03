@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -199,7 +201,7 @@ func (column *Column) validateDefaultValue() error {
 		return nil
 	}
 
-	interfaceVal, err := column.validateValueByConstraints(column.Default)
+	interfaceVal, err := column.validateValueByConstraints(column.Default, false)
 	if err != nil {
 		return err
 	}
@@ -261,7 +263,26 @@ func validateValueByType(value any, datatype string) (any, bool) {
 	return parsed, ok
 }
 
-func (column *Column) validateValueByConstraints(value any) (any, error) {
+func (column *Column) validateValueByConstraints(value any, insert bool) (any, error) {
+	if insert {
+		str := strings.TrimSpace(fmt.Sprintf("%v", value))
+
+		if len(str) == 0 || value == nil {
+			if column.NotNull {
+				return nil, errors.New("null values aren't allowed")
+			}
+
+			return column.Default, nil
+		}
+
+		if column.Unique {
+			if column.values[str] {
+				return nil, errors.New("unique constraint not satisfied")
+			}
+			column.values[str] = true
+		}
+	}
+
 	if strings.HasSuffix(column.DataType, "[]") {
 		datatype := strings.TrimSuffix(column.DataType, "[]")
 
@@ -291,17 +312,17 @@ func (column *Column) validateValueByConstraints(value any) (any, error) {
 		return interfaceArr, nil
 	}
 
-	interfaceVal, ok := validateValueByType(column.Default, column.DataType)
+	interfaceVal, ok := validateValueByType(value, column.DataType)
 	if !ok {
 		errorMessage := fmt.Sprintf("%v should be of %v type", value, column.DataType)
 		return nil, errors.New(errorMessage)
 	}
 
-	if err := column.validateValueByMinMax(value); err != nil {
+	if err := column.validateValueByMinMax(interfaceVal); err != nil {
 		return nil, err
 	}
 
-	if err := column.validateValueByEnum(value); err != nil {
+	if err := column.validateValueByEnum(interfaceVal); err != nil {
 		return nil, err
 	}
 
@@ -310,6 +331,13 @@ func (column *Column) validateValueByConstraints(value any) (any, error) {
 
 // returns if
 func (column *Column) validateValArrLen(value any) ([]any, error) {
+	text, ok := value.(string)
+	if ok {
+		if err := json.Unmarshal([]byte(text), &value); err != nil {
+			return nil, err
+		}
+	}
+
 	interfaceArr, ok := value.([]any)
 	if !ok {
 		return nil, errors.New("failed to convert to array")
@@ -508,11 +536,25 @@ func templateCheckConstraints(column Column, columnName string) string {
 }
 
 func templateValue(value any, datatype string) string {
-	if datatype == "integer" || datatype == "real" || datatype == "bool" {
+	if value == nil {
+		return "NULL"
+	} else if parsed := fmt.Sprintf("%v", value); len(parsed) == 0 {
+		return "NULL"
+	}
+
+	if datatype == "integer" || datatype == "real" || datatype == "boolean" {
 		return fmt.Sprintf("%v", value)
 	}
 
-	if datatype == "text" || datatype == "date" || datatype == "time" || datatype == "timestamptz" {
+	if datatype == "date" || datatype == "time" || datatype == "timestamptz" {
+		parsed, ok := value.(time.Time)
+		if !ok {
+			return "NULL"
+		}
+		return fmt.Sprintf("'%v'", parsed.Format(datetimeFormats[datatype]))
+	}
+
+	if datatype == "text" {
 		return fmt.Sprintf("'%v'", value)
 	}
 
@@ -527,7 +569,14 @@ func templateValue(value any, datatype string) string {
 	for _, item := range arr {
 		formatted := fmt.Sprintf("'%v'", item)
 
-		if datatype == "integer" || datatype == "real" || datatype == "bool" {
+		if datatype == "date" || datatype == "time" || datatype == "timestamptz" {
+			parsed, ok := item.(time.Time)
+			if !ok {
+				formatted = "NULL"
+			}
+			formatted = fmt.Sprintf("'%v'", parsed.Format(datetimeFormats[datatype]))
+		}
+		if datatype == "integer" || datatype == "real" || datatype == "boolean" {
 			formatted = fmt.Sprintf("%v", item)
 		}
 
@@ -554,28 +603,23 @@ func getArrayValidatorArgs(column Column) string {
 	datatype := strings.TrimSuffix(column.DataType, "[]")
 
 	if column.minArrLen > 0 {
-		min_arr := templateValue(column.minArrLen, "integer")
-		res = append(res, min_arr)
+		res[1] = templateValue(column.minArrLen, "integer")
 	}
 
 	if column.maxArrLen > 0 {
-		max_arr := templateValue(column.maxArrLen, "integer")
-		res = append(res, max_arr)
+		res[2] = templateValue(column.maxArrLen, "integer")
 	}
 
 	if column.minIndividual != nil {
-		min_ind := templateValue(column.minIndividual, datatype)
-		res = append(res, min_ind)
+		res[3] = templateValue(column.minIndividual, datatype)
 	}
 
 	if column.maxIndividual != nil {
-		max_ind := templateValue(column.maxIndividual, datatype)
-		res = append(res, max_ind)
+		res[4] = templateValue(column.maxIndividual, datatype)
 	}
 
 	if len(column.Enums) > 0 {
-		enums := templateValue(column.Enums, datatype+"[]")
-		res = append(res, enums)
+		res[5] = templateValue(column.Enums, datatype+"[]")
 	}
 
 	return strings.Join(res, ", ")
@@ -605,6 +649,25 @@ func checkCSVExist(filePath, tableName string) error {
 	if err != nil {
 		errorMessage := fmt.Sprintf("failed to find file %s for table %s: %v", fileName, tableName, err)
 		return errors.New(errorMessage)
+	}
+
+	return nil
+}
+
+func writeFile(filePath string, buffers ...bytes.Buffer) error {
+	fp, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		fp.Close()
+	}()
+
+	for _, buffer := range buffers {
+		if _, err := fp.Write(buffer.Bytes()); err != nil {
+			return err
+		}
 	}
 
 	return nil

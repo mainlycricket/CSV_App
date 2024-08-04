@@ -13,12 +13,17 @@ import (
 	"text/template"
 )
 
-func (dbSchema *DB) createStatements() (bytes.Buffer, error) {
+type insertionResponse struct {
+	err   error
+	table *Table
+}
+
+func (dbSchema *DB) createStatements() (*bytes.Buffer, error) {
 	var createBuffer bytes.Buffer
 
 	basePath, err := os.Getwd()
 	if err != nil {
-		return createBuffer, err
+		return &createBuffer, err
 	}
 
 	funcs := template.FuncMap{
@@ -36,14 +41,14 @@ func (dbSchema *DB) createStatements() (bytes.Buffer, error) {
 	template, err := template.New(fileName).Funcs(funcs).ParseFiles(templatePath)
 
 	if err != nil {
-		return createBuffer, err
+		return &createBuffer, err
 	}
 
-	buffer := bufio.NewWriter(&createBuffer)
+	writer := bufio.NewWriter(&createBuffer)
 
 	// TABLES
-	if err := template.ExecuteTemplate(buffer, "Tables", dbSchema.Tables); err != nil {
-		return createBuffer, err
+	if err := template.ExecuteTemplate(writer, "Tables", dbSchema.Tables); err != nil {
+		return &createBuffer, err
 	}
 
 	// CREATE ARRAY VALIDATORS
@@ -59,8 +64,8 @@ func (dbSchema *DB) createStatements() (bytes.Buffer, error) {
 				column.minIndividual != nil ||
 				column.maxIndividual != nil ||
 				len(column.Enums) > 0) {
-				if err := template.ExecuteTemplate(buffer, "array_validator_function", datatype); err != nil {
-					return createBuffer, err
+				if err := template.ExecuteTemplate(writer, "array_validator_function", datatype); err != nil {
+					return &createBuffer, err
 				}
 				datatypes[datatype] = true
 			}
@@ -68,23 +73,23 @@ func (dbSchema *DB) createStatements() (bytes.Buffer, error) {
 	}
 
 	// Table Validator Trigger Functions
-	if err := template.ExecuteTemplate(buffer, "TableValidatorTrigger", dbSchema.Tables); err != nil {
-		return createBuffer, err
+	if err := template.ExecuteTemplate(writer, "TableValidatorTrigger", dbSchema.Tables); err != nil {
+		return &createBuffer, err
 	}
 
-	if err := buffer.Flush(); err != nil {
-		return createBuffer, err
+	if err := writer.Flush(); err != nil {
+		return &createBuffer, err
 	}
 
-	return createBuffer, nil
+	return &createBuffer, nil
 }
 
-func (dbSchema *DB) foreignKeyStatements() (bytes.Buffer, error) {
+func (dbSchema *DB) foreignKeyStatements() (*bytes.Buffer, error) {
 	var foreignBuffer bytes.Buffer
 
 	basePath, err := os.Getwd()
 	if err != nil {
-		return foreignBuffer, err
+		return &foreignBuffer, err
 	}
 
 	fileName := "create.tmpl"
@@ -103,70 +108,76 @@ func (dbSchema *DB) foreignKeyStatements() (bytes.Buffer, error) {
 	template, err := template.New(fileName).Funcs(funcs).ParseFiles(templatePath)
 
 	if err != nil {
-		return foreignBuffer, err
+		return &foreignBuffer, err
 	}
 
-	buffer := bufio.NewWriter(&foreignBuffer)
+	writer := bufio.NewWriter(&foreignBuffer)
 
-	if err := template.ExecuteTemplate(buffer, "ForeignKeys", dbSchema.Tables); err != nil {
-		return foreignBuffer, err
+	if err := template.ExecuteTemplate(writer, "ForeignKeys", dbSchema.Tables); err != nil {
+		return &foreignBuffer, err
 	}
 
-	if err := buffer.Flush(); err != nil {
-		return foreignBuffer, err
+	if err := writer.Flush(); err != nil {
+		return &foreignBuffer, err
 	}
 
-	return foreignBuffer, nil
+	return &foreignBuffer, nil
 }
 
-func (dbSchema *DB) dataInsertion() (bytes.Buffer, error) {
+func (dbSchema *DB) dataInsertion() (*bytes.Buffer, error) {
 	var insertionBuffer bytes.Buffer
 
-	for tableName, table := range dbSchema.Tables {
-		buffer := bufio.NewWriter(&insertionBuffer)
+	responseChannel := make(chan insertionResponse, 4)
+	tableCount := len(dbSchema.Tables)
 
-		text := fmt.Sprintf("-- DATA INSERTION \"%s\"\n", tableName)
-		text += fmt.Sprintf(`INSERT INTO "%s"`, tableName)
-		buffer.Write([]byte(text))
-
+	for _, table := range dbSchema.Tables {
+		writer := bufio.NewWriter(&insertionBuffer)
 		filePath := filepath.Join(dbSchema.BasePath, table.FileName)
+		go writeTableRows(filePath, &table, writer, responseChannel)
+	}
 
-		if err := writeTableRows(filePath, &table, buffer); err != nil {
-			return insertionBuffer, err
+	for response := range responseChannel {
+		tableCount--
+		if response.err != nil {
+			return &insertionBuffer, response.err
 		}
-
-		dbSchema.Tables[tableName] = table
+		table := response.table
+		dbSchema.Tables[table.TableName] = *table
+		if tableCount == 0 {
+			close(responseChannel)
+		}
 	}
 
 	if err := validateForeignValues(dbSchema.Tables); err != nil {
 		errorMessage := fmt.Sprintf("error while validating foreign values: %v", err)
-		return insertionBuffer, errors.New(errorMessage)
+		return &insertionBuffer, errors.New(errorMessage)
 	}
 
-	return insertionBuffer, nil
+	return &insertionBuffer, nil
 }
 
-func writeTableRows(filePath string, table *Table, buffer *bufio.Writer) error {
-	tableName := filepath.Base(filePath)
+func writeTableRows(filePath string, table *Table, writer *bufio.Writer, channel chan<- insertionResponse) {
+	tableName := table.TableName
+	var mainError error
 
 	fp, err := os.Open(filePath)
 	if err != nil {
-		return err
+		channel <- insertionResponse{table: table, err: err}
+		return
 	}
 
 	defer func() {
 		fp.Close()
+		channel <- insertionResponse{table: table, err: mainError}
 	}()
 
 	reader := csv.NewReader(fp)
 
+	headersSQL := ""
 	headers, err := reader.Read()
 	if err != nil {
-		return err
-	}
-
-	if _, err := buffer.Write([]byte("(")); err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	for idx, header := range headers {
@@ -179,25 +190,16 @@ func writeTableRows(filePath string, table *Table, buffer *bufio.Writer) error {
 
 		if _, ok := table.Columns[columnName]; !ok {
 			errorMessage := fmt.Sprintf("%s column not found in %s table schema", header, tableName)
-			return errors.New(errorMessage)
+			mainError = errors.New(errorMessage)
+			return
 		}
 
 		headers[idx] = columnName
 
-		if idx == len(headers)-1 {
-			if _, err := buffer.Write([]byte(fmt.Sprintf(`"%s"`, columnName))); err != nil {
-				return err
-			}
-
-		} else {
-			if _, err := buffer.Write([]byte(fmt.Sprintf(`"%s",`, columnName))); err != nil {
-				return err
-			}
+		headersSQL += fmt.Sprintf(`"%s"`, columnName)
+		if idx < len(headers)-1 {
+			headersSQL += ", "
 		}
-	}
-
-	if _, err := buffer.Write([]byte(")\nVALUES\n")); err != nil {
-		return err
 	}
 
 	rowIdx := 2
@@ -205,20 +207,34 @@ func writeTableRows(filePath string, table *Table, buffer *bufio.Writer) error {
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
-			buffer.Write([]byte(";\n"))
+			if rowIdx > 2 {
+				writer.Write([]byte(";\n"))
+			}
 			break
 		}
 
+		if rowIdx == 2 {
+			text := fmt.Sprintf("-- DATA INSERTION \"%s\"\n", tableName)
+			text += fmt.Sprintf("INSERT INTO \"%s\" (%s)\nVALUES\n", tableName, headersSQL)
+
+			if _, err := writer.Write([]byte(text)); err != nil {
+				mainError = err
+				return
+			}
+		}
+
 		if rowIdx > 2 {
-			buffer.Write([]byte(",\n"))
+			writer.Write([]byte(",\n"))
 		}
 
 		if err != nil {
-			return err
+			mainError = err
+			return
 		}
 
-		if _, err := buffer.Write([]byte("(")); err != nil {
-			return err
+		if _, err := writer.Write([]byte("(")); err != nil {
+			mainError = err
+			return
 		}
 
 		for idx, value := range row {
@@ -228,7 +244,8 @@ func writeTableRows(filePath string, table *Table, buffer *bufio.Writer) error {
 
 			if err != nil {
 				errorMessage := fmt.Sprintf("error in row no. %d in %s column of %s table: %v", rowIdx, columnName, tableName, err)
-				return errors.New(errorMessage)
+				mainError = errors.New(errorMessage)
+				return
 			}
 
 			str := templateValue(val, column.DataType)
@@ -241,25 +258,26 @@ func writeTableRows(filePath string, table *Table, buffer *bufio.Writer) error {
 				str += ", "
 			}
 
-			if _, err := buffer.Write([]byte(str)); err != nil {
-				return err
+			if _, err := writer.Write([]byte(str)); err != nil {
+				mainError = err
+				return
 			}
 
 			table.Columns[columnName] = column
 		}
 
-		if _, err := buffer.Write([]byte(")")); err != nil {
-			return err
+		if _, err := writer.Write([]byte(")")); err != nil {
+			mainError = err
+			return
 		}
 		rowIdx++
 	}
 
-	buffer.Write([]byte("\n"))
-	if err := buffer.Flush(); err != nil {
-		return err
+	writer.Write([]byte("\n"))
+	if err := writer.Flush(); err != nil {
+		mainError = err
+		return
 	}
-
-	return nil
 }
 
 func validateForeignValues(tables map[string]Table) error {

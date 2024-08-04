@@ -7,12 +7,14 @@ type DB struct {
 }
 
 type Table struct {
+	TableName  string            `json:"tableName"`
 	FileName   string            `json:"fileName"`
 	PrimaryKey string            `json:"primaryKey"`
 	Columns    map[string]Column `json:"columns"` // key: columnName
 }
 
 type Column struct {
+	ColumnName    string        `json:"columnName"`
 	DataType      string        `json:"dataType"`
 	NotNull       bool          `json:"notNull"`
 	Unique        bool          `json:"unique"`

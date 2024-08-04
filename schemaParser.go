@@ -119,8 +119,9 @@ func (dbSchema *DB) setForeignKeys(primaryKeys map[string]string) {
 // Parses a CSV file and writes the response to channel
 func createTableSchema(filePath string, tableResponseChannel chan<- tableResponse) {
 	fileName := filepath.Base(filePath)
+	tableName := sanitize_db_label(strings.TrimSuffix(fileName, ".csv"))
 
-	table := Table{FileName: fileName}
+	table := Table{FileName: fileName, TableName: tableName}
 	table.Columns = make(map[string]Column, 20)
 	var mainError error
 
@@ -139,6 +140,11 @@ func createTableSchema(filePath string, tableResponseChannel chan<- tableRespons
 	reader := csv.NewReader(fp)
 	headers, err := reader.Read()
 
+	if err == io.EOF {
+		mainError = errors.New("no headers found in " + fileName)
+		return
+	}
+
 	if err != nil {
 		mainError = err
 		return
@@ -149,6 +155,7 @@ func createTableSchema(filePath string, tableResponseChannel chan<- tableRespons
 		column := Column{}
 
 		columnName := column.setTableConstraints(&table, header)
+		column.ColumnName = columnName
 
 		if _, ok := table.Columns[columnName]; ok {
 			message := fmt.Sprintf("column %s already exists in %s table", columnName, fileName)
@@ -181,6 +188,8 @@ func setColumnTypes(reader *csv.Reader, table *Table, headers []string) error {
 			return err
 		}
 
+		count := len(headers)
+
 		// Traversing columns in the row
 		for j, value := range row {
 			columnName := headers[j]
@@ -190,18 +199,44 @@ func setColumnTypes(reader *csv.Reader, table *Table, headers []string) error {
 
 			value = strings.TrimSpace(value)
 
-			if existingType == "text" || len(value) == 0 {
+			if len(value) == 0 {
 				continue
 			}
 
-			detectedType := detectDataType(value)
-			if len(existingType) != 0 && existingType != detectedType {
-				column.DataType = "text"
+			if existingType == "text" {
+				count--
+				continue
+			}
+
+			// validate against existing type
+			if existingType != "" {
+				ok := validateAgainstExistingType(value, existingType)
+
+				if ok {
+					continue
+				}
+
+				detectedType := detectDataType(value)
+
+				if (existingType == "integer" && detectedType == "real") ||
+					(existingType == "real" && detectedType == "integer") {
+					column.DataType = "real"
+				} else {
+					column.DataType = "text"
+				}
 			} else {
-				column.DataType = detectedType
+				column.DataType = detectDataType(value)
 			}
 
 			table.Columns[columnName] = column
+			if column.DataType == "text" {
+				count--
+			}
+		}
+
+		// stop reading if all columns are texts
+		if count == 0 {
+			break
 		}
 	}
 
@@ -246,10 +281,8 @@ func (column *Column) setTableConstraints(table *Table, columnName string) strin
 	return columnName
 }
 
-// checks for only integer, float, boolean, date, time, datetime
-func detectDataType(content any) string {
-	value := fmt.Sprintf("%v", content)
-
+// checks all types including no type
+func detectDataType(value string) string {
 	if basicType := detectBasicDataType(value); len(basicType) > 0 {
 		return basicType
 	}
@@ -276,6 +309,13 @@ func detectDataType(content any) string {
 	for _, subVal := range arr {
 		subVal := fmt.Sprintf("%v", subVal)
 		detectedType := detectBasicDataType(subVal)
+
+		if (prevType == "integer" && detectedType == "real") ||
+			(prevType == "real" && detectedType == "integer") {
+			prevType = "real"
+			continue
+		}
+
 		if detectedType != prevType {
 			return "text[]"
 		} else {
@@ -322,6 +362,33 @@ func detectBasicDataType(value string) string {
 	}
 
 	return ""
+}
+
+func validateAgainstExistingType(value, datatype string) bool {
+	if strings.HasSuffix(datatype, "[]") {
+		arr := []any{}
+		err := json.Unmarshal([]byte(value), &arr)
+
+		if err != nil {
+			return false
+		}
+
+		if len(arr) == 0 {
+			return true
+		}
+
+		datatype := strings.TrimSuffix(datatype, "[]")
+		for _, value := range arr {
+			_, ok := validateValueByType(value, datatype)
+			if !ok {
+				return false
+			}
+		}
+		return true
+	}
+
+	_, ok := validateValueByType(value, datatype)
+	return ok
 }
 
 func readSchema() (DB, error) {

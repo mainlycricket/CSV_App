@@ -3,10 +3,12 @@
   "basePath": "/home/tushar/Desktop/go_tutorial/projects/CSV_App/data",
   "tables": {
     "TypeTest": {
+      "tableName": "TypeTest",
       "fileName": "TypeTest.csv",
       "primaryKey": "",
       "columns": {
         "Bool": {
+          "columnName": "Bool",
           "dataType": "boolean",
           "notNull": false,
           "unique": false,
@@ -18,7 +20,8 @@
           "foreignField": ""
         },
         "Bool_Arr": {
-          "dataType": "[]boolean",
+          "columnName": "Bool_Arr",
+          "dataType": "boolean[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -29,6 +32,7 @@
           "foreignField": ""
         },
         "Date": {
+          "columnName": "Date",
           "dataType": "date",
           "notNull": false,
           "unique": false,
@@ -40,7 +44,8 @@
           "foreignField": ""
         },
         "DateTime": {
-          "dataType": "datetime",
+          "columnName": "DateTime",
+          "dataType": "timestamptz",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -51,7 +56,8 @@
           "foreignField": ""
         },
         "Date_arr": {
-          "dataType": "[]date",
+          "columnName": "Date_arr",
+          "dataType": "date[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -62,7 +68,8 @@
           "foreignField": ""
         },
         "Datetime_Arr": {
-          "dataType": "[]datetime",
+          "columnName": "Datetime_Arr",
+          "dataType": "timestamptz[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -73,28 +80,31 @@
           "foreignField": ""
         },
         "Float": {
-          "dataType": "float",
+          "columnName": "Float",
+          "dataType": "real",
           "notNull": false,
           "unique": false,
-          "min": "",
-          "max": "",
+          "min": "-100",
+          "max": "+100",
           "default": -5.34,
           "enums": null,
           "foreignTable": "",
           "foreignField": ""
         },
         "Float_arr": {
-          "dataType": "[]float",
+          "columnName": "Float_arr",
+          "dataType": "real[]",
           "notNull": false,
           "unique": false,
           "min": "2, 4",
-          "max": "4, 5",
-          "default": [4.5, -4.64],
+          "max": "2, 5",
+          "default": [4.5, 4.64],
           "enums": null,
           "foreignTable": "",
           "foreignField": ""
         },
         "Int": {
+          "columnName": "Int",
           "dataType": "integer",
           "notNull": false,
           "unique": false,
@@ -106,18 +116,20 @@
           "foreignField": ""
         },
         "Int_Arr": {
-          "dataType": "[]integer",
+          "columnName": "Int_Arr",
+          "dataType": "integer[]",
           "notNull": false,
           "unique": false,
           "min": "",
           "max": "",
           "default": [4, 5],
-          "enums": null,
+          "enums": [1, 2, 3, 4, 5],
           "foreignTable": "",
           "foreignField": ""
         },
         "Str_Arr": {
-          "dataType": "[]string",
+          "columnName": "Str_Arr",
+          "dataType": "text[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -128,7 +140,8 @@
           "foreignField": ""
         },
         "String": {
-          "dataType": "string",
+          "columnName": "String",
+          "dataType": "text",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -139,6 +152,7 @@
           "foreignField": ""
         },
         "Time": {
+          "columnName": "Time",
           "dataType": "time",
           "notNull": false,
           "unique": false,
@@ -150,7 +164,8 @@
           "foreignField": ""
         },
         "Time_Arr": {
-          "dataType": "[]time",
+          "columnName": "Time_Arr",
+          "dataType": "time[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -163,10 +178,12 @@
       }
     },
     "branches": {
+      "tableName": "branches",
       "fileName": "branches.csv",
       "primaryKey": "Branch_Id",
       "columns": {
         "Branch_Id": {
+          "columnName": "Branch_Id",
           "dataType": "integer",
           "notNull": true,
           "unique": true,
@@ -178,7 +195,8 @@
           "foreignField": ""
         },
         "Branch_Name": {
-          "dataType": "string",
+          "columnName": "Branch_Name",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "min": "",
@@ -189,6 +207,7 @@
           "foreignField": ""
         },
         "Course_Id": {
+          "columnName": "Course_Id",
           "dataType": "integer",
           "notNull": true,
           "unique": false,
@@ -200,7 +219,8 @@
           "foreignField": "Course_Id"
         },
         "Teachers": {
-          "dataType": "[]string",
+          "columnName": "Teachers",
+          "dataType": "text[]",
           "notNull": false,
           "unique": false,
           "min": "",
@@ -213,10 +233,12 @@
       }
     },
     "courses": {
+      "tableName": "courses",
       "fileName": "courses.csv",
       "primaryKey": "Course_Id",
       "columns": {
         "Course_Id": {
+          "columnName": "Course_Id",
           "dataType": "integer",
           "notNull": true,
           "unique": true,
@@ -228,7 +250,8 @@
           "foreignField": ""
         },
         "Course_Name": {
-          "dataType": "string",
+          "columnName": "Course_Name",
+          "dataType": "text",
           "notNull": true,
           "unique": true,
           "min": "",
@@ -239,6 +262,7 @@
           "foreignField": ""
         },
         "Lateral_Allowed": {
+          "columnName": "Lateral_Allowed",
           "dataType": "boolean",
           "notNull": false,
           "unique": false,
@@ -252,10 +276,12 @@
       }
     },
     "students": {
+      "tableName": "students",
       "fileName": "students.csv",
       "primaryKey": "Student_Id",
       "columns": {
         "Branch_Id": {
+          "columnName": "Branch_Id",
           "dataType": "integer",
           "notNull": true,
           "unique": false,
@@ -267,6 +293,7 @@
           "foreignField": "Branch_Id"
         },
         "Course_Id": {
+          "columnName": "Course_Id",
           "dataType": "integer",
           "notNull": true,
           "unique": false,
@@ -278,7 +305,8 @@
           "foreignField": "Course_Id"
         },
         "Student_Father": {
-          "dataType": "string",
+          "columnName": "Student_Father",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "min": "",
@@ -289,6 +317,7 @@
           "foreignField": ""
         },
         "Student_Id": {
+          "columnName": "Student_Id",
           "dataType": "integer",
           "notNull": true,
           "unique": true,
@@ -300,7 +329,8 @@
           "foreignField": ""
         },
         "Student_Name": {
-          "dataType": "string",
+          "columnName": "Student_Name",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "min": "",
@@ -313,10 +343,12 @@
       }
     },
     "subjects": {
+      "tableName": "subjects",
       "fileName": "subjects.csv",
       "primaryKey": "Subject_Id",
       "columns": {
         "Branch_Id": {
+          "columnName": "Branch_Id",
           "dataType": "integer",
           "notNull": true,
           "unique": false,
@@ -328,6 +360,7 @@
           "foreignField": "Branch_Id"
         },
         "Subject_Id": {
+          "columnName": "Subject_Id",
           "dataType": "integer",
           "notNull": true,
           "unique": true,
@@ -339,7 +372,8 @@
           "foreignField": ""
         },
         "Subject_Name": {
-          "dataType": "string",
+          "columnName": "Subject_Name",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "min": "",

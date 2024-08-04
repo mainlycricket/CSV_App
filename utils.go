@@ -654,7 +654,7 @@ func checkCSVExist(filePath, tableName string) error {
 	return nil
 }
 
-func writeFile(filePath string, buffers ...bytes.Buffer) error {
+func writeFile(filePath string, buffers ...*bytes.Buffer) error {
 	fp, err := os.Create(filePath)
 	if err != nil {
 		return err

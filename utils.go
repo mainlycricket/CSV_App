@@ -632,8 +632,10 @@ func decrease(x int) int {
 func sanitize_db_label(text string) string {
 	regex := regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	trimmed := strings.TrimSpace(text)
-	sanitized := regex.ReplaceAll([]byte(trimmed), []byte("_"))
-	return string(sanitized)
+	sanitized := string(regex.ReplaceAll([]byte(trimmed), []byte("_")))
+	sanitized = strings.TrimPrefix(sanitized, "_")
+	sanitized = strings.TrimSuffix(sanitized, "_")
+	return sanitized
 }
 
 func checkCSVExist(filePath, tableName string) error {

@@ -1,0 +1,18 @@
+package main
+
+{{- range $tableName, $table := . }}
+    {{- range $columnName, $column := $table.Columns -}}
+        {{- if or (HasPrefix  $column.DataType "time") (HasPrefix  $column.DataType "date") -}}
+            {{- "\n" -}} import "time"
+            {{- break -}}
+        {{- end -}}
+    {{- end -}}
+{{- end -}}
+
+{{ range $tableName, $table := . }}
+type {{ $tableName }} struct {
+    {{- range $columnName, $column := $table.Columns -}}
+	{{ capitalizeStr $columnName }} {{ getGoType $column.DataType }} `json:"{{ $columnName }}"`;
+    {{- end -}}
+}
+{{ end -}}

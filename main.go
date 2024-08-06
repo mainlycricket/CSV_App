@@ -64,6 +64,45 @@ func main() {
 		}
 
 		fmt.Println("db.sql generated")
+	} else if input == "app" {
+		dbSchema, err := readSchema()
+
+		if err != nil {
+			log.Fatalf("Failed to parse DB schema: %v", err)
+		}
+
+		err = dbSchema.validateSchema()
+
+		if err != nil {
+			log.Fatalf("Schema Validation Failed: %v", err)
+		}
+
+		basePath, err := os.Getwd()
+		if err != nil {
+			log.Fatalf("error while reading current directory path: %v", err)
+		}
+
+		appPath := filepath.Join(basePath, "app")
+
+		if err := os.Mkdir(appPath, os.ModePerm); err != nil {
+			log.Fatalf("error while creating app: %v", err)
+		}
+
+		modelFilePath := filepath.Join(appPath, "models.go")
+		if err := dbSchema.writeModels(modelFilePath); err != nil {
+			log.Fatalf("error while writing models: %v", err)
+		}
+
+		mainFilePath := filepath.Join(appPath, "main.go")
+		if err := dbSchema.writeMain(mainFilePath); err != nil {
+			log.Fatalf("error while writing main: %v", err)
+		}
+
+		if err := executeAppCommands(appPath); err != nil {
+			log.Fatalf("error while executing commands: %v", err)
+		}
+
+		fmt.Println("app generated")
 	} else {
 		log.Fatalf(argsMessage)
 	}

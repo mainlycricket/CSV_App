@@ -1,0 +1,126 @@
+package main
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+)
+
+const (
+	host     = "localhost"
+	port     = 5432
+	user     = "postgres"
+	password = "password"
+	dbname   = "CSV_App"
+)
+
+func connectDB() (*sql.DB, error) {
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s", host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", connStr)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func insertStudent(student *Student) error {
+	stmt, err := db.Prepare(`INSERT INTO "students" ("Branch_Id", "Course_Id", "Student_Father", "Student_Id", "Student_Name") VALUES ($1, $2, $3, $4, $5)`)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(student.Branch_Id, student.Course_Id, student.Student_Father, student.Student_Id, student.Student_Name)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func readAllStudents() ([]Student, error) {
+	rows, err := db.Query(`SELECT * FROM "students"`)
+
+	if err != nil {
+		return []Student{}, err
+	}
+
+	defer rows.Close()
+
+	students := []Student{}
+
+	for rows.Next() {
+		student := Student{}
+		rows.Scan(&student.Branch_Id, &student.Course_Id, &student.Student_Father, &student.Student_Id, &student.Student_Name)
+		students = append(students, student)
+	}
+
+	return students, nil
+}
+
+func readStudentByPK(id int) (Student, error) {
+	stmt, err := db.Prepare(`SELECT * FROM "students" WHERE "Student_Id" = $1`)
+	if err != nil {
+		return Student{}, err
+	}
+
+	var student Student
+
+	if err := stmt.QueryRow(id).Scan(&student.Branch_Id, &student.Course_Id, &student.Student_Father, &student.Student_Id, &student.Student_Name); err != nil {
+		return Student{}, err
+	}
+
+	return student, nil
+}
+
+func updateStudentByPK(student *Student, id int) error {
+	stmt, err := db.Prepare(`UPDATE "students" SET "Branch_Id" = $1, "Course_Id" = $2, "Student_Father" = $3, "Student_Id" = $4, "Student_Name" = $5 WHERE "Student_Id" = $6`)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.Exec(student.Branch_Id, student.Course_Id, student.Student_Father, student.Student_Id, student.Student_Name, id)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
+		return errors.New("no student found with provided id")
+	}
+
+	return nil
+}
+
+func deleteStudentByPK(id int) error {
+	stmt, err := db.Prepare(`DELETE FROM "students" WHERE "Student_Id" = $1`)
+
+	if err != nil {
+		return err
+	}
+
+	result, err := stmt.Exec(id)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
+		return errors.New("no student found with provided id")
+	}
+
+	return nil
+}

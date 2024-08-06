@@ -1,0 +1,168 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+)
+
+type ApiResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Data    any    `json:"data"`
+}
+
+func getJsonResponse(success bool, message string, data any) []byte {
+	response := ApiResponse{Success: success, Message: message, Data: data}
+	jsonData, err := json.Marshal(response)
+
+	if err != nil {
+		response := ApiResponse{Success: false, Message: "failed to jsonify response"}
+		jsonData, _ := json.Marshal(response)
+		return jsonData
+	}
+
+	return jsonData
+}
+
+func startServer() *http.Server {
+	http.HandleFunc("POST /students", createStudent)
+	http.HandleFunc("GET /students", getAllStudents)
+	http.HandleFunc("GET /students/{id}", getSingleStudent)
+	http.HandleFunc("PUT /students/{id}", updateSingleStudent)
+	http.HandleFunc("DELETE /students/{id}", deleteSingleStudent)
+
+	s := &http.Server{
+		Addr:           ":8080",
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+
+	return s
+}
+
+func createStudent(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var student Student
+
+	if err := json.NewDecoder(r.Body).Decode(&student); err != nil {
+		message := fmt.Sprintf("error while reading request body: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	if err := insertStudent(&student); err != nil {
+		message := fmt.Sprintf("error while creating student: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write(getJsonResponse(true, "student created", nil))
+}
+
+func getAllStudents(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	students, err := readAllStudents()
+
+	if err != nil {
+		message := fmt.Sprintf("error while reading students: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.Write(getJsonResponse(true, "students", students))
+}
+
+func getSingleStudent(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	id := r.PathValue("id")
+	pk, err := strconv.Atoi(id)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, "failed to convert to integer", nil))
+		return
+	}
+
+	student, err := readStudentByPK(pk)
+
+	if err != nil {
+		message := fmt.Sprintf("error while reading student: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.Write(getJsonResponse(true, "found student", student))
+}
+
+func updateSingleStudent(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	id := r.PathValue("id")
+	pk, err := strconv.Atoi(id)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, "failed to convert id into integer", nil))
+		return
+	}
+
+	var student Student
+
+	if err := json.NewDecoder(r.Body).Decode(&student); err != nil {
+		message := fmt.Sprintf("error while reading request body: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	if err := updateStudentByPK(&student, pk); err != nil {
+		message := fmt.Sprintf("error while updating student: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.Write(getJsonResponse(true, "updated student", nil))
+}
+
+func deleteSingleStudent(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	id := r.PathValue("id")
+	pk, err := strconv.Atoi(id)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, "failed to convert id into integer", nil))
+		return
+	}
+
+	if err := deleteStudentByPK(pk); err != nil {
+		message := fmt.Sprintf("error while deleting student: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.Write(getJsonResponse(true, "deleted student", nil))
+}

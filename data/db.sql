@@ -57,6 +57,12 @@ VALUES
 (2, 'Information Technology', 1, array['LD', 'RK']::text[]),
 (3, 'Civil Engineering', 1, NULL);
 
+-- DATA INSERTION "courses"
+INSERT INTO "courses" ("Course_Id", "Course_Name", "Lateral_Allowed")
+VALUES
+(1, 'B. Tech.', true),
+(2, 'M. Tech.', false);
+
 -- DATA INSERTION "subjects"
 INSERT INTO "subjects" ("Subject_Id", "Subject_Name", "Branch_Id")
 VALUES
@@ -65,6 +71,7 @@ VALUES
 (3, 'WT', 2),
 (4, 'Java', 2);
 
+
 -- DATA INSERTION "students"
 INSERT INTO "students" ("Student_Id", "Student_Name", "Student_Father", "Course_Id", "Branch_Id")
 VALUES
@@ -72,13 +79,6 @@ VALUES
 (2, 'Akshay', 'Nand', 1, 1),
 (3, 'Saurabh', 'Jagganath', 1, 2),
 (4, 'Harsh', 'Ramesh', 1, 2);
-
-
--- DATA INSERTION "courses"
-INSERT INTO "courses" ("Course_Id", "Course_Name", "Lateral_Allowed")
-VALUES
-(1, 'B. Tech.', true),
-(2, 'M. Tech.', false);
 
 -- DATA INSERTION "TypeTest"
 INSERT INTO "TypeTest" ("Int", "String", "Float", "Date", "Time", "DateTime", "Bool", "Int_Arr", "Str_Arr", "Float_arr", "Date_arr", "Time_Arr", "Datetime_Arr", "Bool_Arr")

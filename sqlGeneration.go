@@ -35,8 +35,8 @@ func (dbSchema *DB) createStatements() (*bytes.Buffer, error) {
 		"templateCheckConstraints": templateCheckConstraints,
 	}
 
-	fileName := "create.tmpl"
-	templatePath := filepath.Join(basePath, fileName)
+	fileName := "sql.tmpl"
+	templatePath := filepath.Join(basePath, "templates", fileName)
 
 	template, err := template.New(fileName).Funcs(funcs).ParseFiles(templatePath)
 
@@ -92,7 +92,7 @@ func (dbSchema *DB) foreignKeyStatements() (*bytes.Buffer, error) {
 		return &foreignBuffer, err
 	}
 
-	fileName := "create.tmpl"
+	fileName := "sql.tmpl"
 
 	funcs := template.FuncMap{
 		"HasSuffix":                strings.HasSuffix,
@@ -103,7 +103,7 @@ func (dbSchema *DB) foreignKeyStatements() (*bytes.Buffer, error) {
 		"templateCheckConstraints": templateCheckConstraints,
 	}
 
-	templatePath := filepath.Join(basePath, fileName)
+	templatePath := filepath.Join(basePath, "templates", fileName)
 
 	template, err := template.New(fileName).Funcs(funcs).ParseFiles(templatePath)
 

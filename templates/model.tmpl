@@ -10,9 +10,13 @@ package main
 {{- end -}}
 
 {{ range $tableName, $table := . }}
-type {{ $tableName }} struct {
+type Table_{{ $tableName }} struct {
+    {{- if eq (len $table.PrimaryKey) 0 -}}
+    ID__ uint `json:"__ID"`;
+    {{- end -}}
+
     {{- range $columnName, $column := $table.Columns -}}
-	{{ capitalizeStr $columnName }} {{ getGoType $column.DataType }} `json:"{{ $columnName }}"`;
+	Column_{{ $columnName }} {{ getGoType $column.DataType }} `json:"{{ $columnName }}"`;
     {{- end -}}
 }
 {{ end -}}

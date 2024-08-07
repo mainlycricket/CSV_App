@@ -29,28 +29,39 @@ func getJsonResponse(success bool, message string, data any) []byte {
 }
 
 func startServer() *http.Server {
-	http.HandleFunc("POST /students", createStudent)
-	http.HandleFunc("GET /students", getAllStudents)
-	http.HandleFunc("GET /students/{id}", getSingleStudent)
-	http.HandleFunc("PUT /students/{id}", updateSingleStudent)
-	http.HandleFunc("DELETE /students/{id}", deleteSingleStudent)
+	{{ range $tableName, $table := . }}
+		// {{ $tableName }} routes
+		http.HandleFunc("POST /{{- $tableName -}}", api_create_ {{- $tableName -}})
+		http.HandleFunc("GET /{{- $tableName -}}", api_getAll_ {{- $tableName -}})
+		http.HandleFunc("GET /{{- $tableName -}}/{id}", api_getByPk_ {{- $tableName -}})
+		http.HandleFunc("PUT /{{- $tableName -}}/{id}", api_update_ {{- $tableName -}})
+		http.HandleFunc("DELETE /{{- $tableName -}}/{id}", api_delete_ {{- $tableName -}})
+	{{ end }}
 
 	s := &http.Server{
 		Addr:           ":8080",
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 20,
 	}
 
 	return s
 }
 
-func createStudent(w http.ResponseWriter, r *http.Request) {
+{{ range $tableName, $table := . }}
+
+	// {{ $tableName }} handler functions
+	{{ template "create" $table }}
+	{{ template "readAll" $table }}
+	{{ template "readByPK" $table }}
+	{{ template "update" $table }}
+	{{ template "delete" $table }}
+{{ end }}
+
+{{ define "create" }}
+func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var student Student
+	var item Table_ {{- .TableName }}
 
-	if err := json.NewDecoder(r.Body).Decode(&student); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		message := fmt.Sprintf("error while reading request body: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -58,8 +69,8 @@ func createStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := insertStudent(&student); err != nil {
-		message := fmt.Sprintf("error while creating student: %v", err)
+	if err := db_insert_ {{- .TableName -}} (&item); err != nil {
+		message := fmt.Sprintf("error while creating: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
@@ -67,26 +78,30 @@ func createStudent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write(getJsonResponse(true, "student created", nil))
+	w.Write(getJsonResponse(true, "created successfully", nil))
 }
+{{ end }}
 
-func getAllStudents(w http.ResponseWriter, r *http.Request) {
+{{ define "readAll" }}
+func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	students, err := readAllStudents()
+	data, err := db_readAll_ {{- .TableName -}} ()
 
 	if err != nil {
-		message := fmt.Sprintf("error while reading students: %v", err)
+		message := fmt.Sprintf("error while reading: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	w.Write(getJsonResponse(true, "students", students))
+	w.Write(getJsonResponse(true, "data fetched successfully", data))
 }
+{{ end }}
 
-func getSingleStudent(w http.ResponseWriter, r *http.Request) {
+{{ define "readByPK" }}
+func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	id := r.PathValue("id")
@@ -94,24 +109,26 @@ func getSingleStudent(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to convert to integer", nil))
+		w.Write(getJsonResponse(false, "failed to type cast id", nil))
 		return
 	}
 
-	student, err := readStudentByPK(pk)
+	data, err := db_read_ {{- .TableName -}} _ByPK (pk)
 
 	if err != nil {
-		message := fmt.Sprintf("error while reading student: %v", err)
+		message := fmt.Sprintf("error while reading data: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	w.Write(getJsonResponse(true, "found student", student))
+	w.Write(getJsonResponse(true, "found data", data))
 }
+{{ end }}
 
-func updateSingleStudent(w http.ResponseWriter, r *http.Request) {
+{{ define "update" }}
+func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	id := r.PathValue("id")
@@ -119,13 +136,13 @@ func updateSingleStudent(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to convert id into integer", nil))
+		w.Write(getJsonResponse(false, "failed to type cast", nil))
 		return
 	}
 
-	var student Student
+	var item Table_ {{- .TableName }}
 
-	if err := json.NewDecoder(r.Body).Decode(&student); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		message := fmt.Sprintf("error while reading request body: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -133,18 +150,20 @@ func updateSingleStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := updateStudentByPK(&student, pk); err != nil {
-		message := fmt.Sprintf("error while updating student: %v", err)
+	if err := db_update_ {{- .TableName -}} (&item, pk); err != nil {
+		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	w.Write(getJsonResponse(true, "updated student", nil))
+	w.Write(getJsonResponse(true, "updated successfully", nil))
 }
+{{ end }}
 
-func deleteSingleStudent(w http.ResponseWriter, r *http.Request) {
+{{ define "delete" }}
+func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	id := r.PathValue("id")
@@ -152,17 +171,18 @@ func deleteSingleStudent(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to convert id into integer", nil))
+		w.Write(getJsonResponse(false, "failed to type caste", nil))
 		return
 	}
 
-	if err := deleteStudentByPK(pk); err != nil {
-		message := fmt.Sprintf("error while deleting student: %v", err)
+	if err := db_delete_ {{- .TableName -}} (pk); err != nil {
+		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	w.Write(getJsonResponse(true, "deleted student", nil))
+	w.Write(getJsonResponse(true, "deleted successfully", nil))
 }
+{{ end }}

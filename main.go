@@ -93,6 +93,16 @@ func main() {
 			log.Fatalf("error while writing models: %v", err)
 		}
 
+		dbFilePath := filepath.Join(appPath, "dbUtils.go")
+		if err := dbSchema.writeDbUtils(dbFilePath); err != nil {
+			log.Fatalf("error while DB Utils: %v", err)
+		}
+
+		httpFilePath := filepath.Join(appPath, "httpUtils.go")
+		if err := dbSchema.writeHttpUtils(httpFilePath); err != nil {
+			log.Fatalf("error while writing http utils: %v", err)
+		}
+
 		mainFilePath := filepath.Join(appPath, "main.go")
 		if err := dbSchema.writeMain(mainFilePath); err != nil {
 			log.Fatalf("error while writing main: %v", err)

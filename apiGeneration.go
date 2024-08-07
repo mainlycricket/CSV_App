@@ -18,9 +18,82 @@ func (dbSchema *DB) writeModels(filePath string) error {
 	templateFileName := "model.tmpl"
 
 	funcs := template.FuncMap{
-		"capitalizeStr": capitalizeStr,
-		"getGoType":     getGoType,
-		"HasPrefix":     strings.HasPrefix,
+		"getGoType": getGoType,
+		"HasPrefix": strings.HasPrefix,
+	}
+
+	templatePath := filepath.Join(basePath, "templates", templateFileName)
+
+	template, err := template.New(templateFileName).Funcs(funcs).ParseFiles(templatePath)
+	if err != nil {
+		return err
+	}
+
+	fp, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+
+	defer fp.Close()
+
+	if err := template.Execute(fp, dbSchema.Tables); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dbSchema *DB) writeDbUtils(filePath string) error {
+	basePath, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	templateFileName := "db.tmpl"
+
+	funcs := template.FuncMap{
+		"getGoType": getGoType,
+		"getPkType": getPkType,
+		"HasPrefix": strings.HasPrefix,
+		"increase":  increase,
+		"decrease":  decrease,
+	}
+
+	templatePath := filepath.Join(basePath, "templates", templateFileName)
+
+	template, err := template.New(templateFileName).Funcs(funcs).ParseFiles(templatePath)
+	if err != nil {
+		return err
+	}
+
+	fp, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+
+	defer fp.Close()
+
+	if err := template.Execute(fp, dbSchema.Tables); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dbSchema *DB) writeHttpUtils(filePath string) error {
+	basePath, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	templateFileName := "http.tmpl"
+
+	funcs := template.FuncMap{
+		"getGoType": getGoType,
+		"getPkType": getPkType,
+		"HasPrefix": strings.HasPrefix,
+		"increase":  increase,
+		"decrease":  decrease,
 	}
 
 	templatePath := filepath.Join(basePath, "templates", templateFileName)
@@ -129,16 +202,12 @@ func getGoType(datatype string) string {
 	return res
 }
 
-func capitalizeStr(text string) string {
-	res := ""
-
-	if len(text) > 0 {
-		res += strings.ToUpper(string(text[0]))
+func getPkType(table Table) string {
+	if table.PrimaryKey == "" {
+		return "uint"
 	}
 
-	if len(text) > 1 {
-		res += text[1:]
-	}
+	pk := table.Columns[table.PrimaryKey]
 
-	return res
+	return getGoType(pk.DataType)
 }

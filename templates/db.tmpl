@@ -30,8 +30,47 @@ func connectDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func insertStudent(student *Student) error {
-	stmt, err := db.Prepare(`INSERT INTO "students" ("Branch_Id", "Course_Id", "Student_Father", "Student_Id", "Student_Name") VALUES ($1, $2, $3, $4, $5)`)
+{{ range $tableName, $table := . }}
+
+// {{ $tableName }} CRUD
+
+{{ template "insert" $table }}
+{{ template "readAll" $table }}
+{{ template "readByPK" $table }}
+{{ template "update" $table }}
+{{ template "delete" $table }}
+
+{{- end -}}
+
+{{- define "insert" -}}
+
+func db_insert_ {{- .TableName -}} ({{ .TableName }}_ *Table_ {{- .TableName -}}) error {
+	stmt, err := db.Prepare(`INSERT INTO "{{- .TableName -}}" (
+
+	{{- $n := len .Columns -}}
+
+	{{- range $columnName, $column := .Columns -}}
+		"{{- $columnName -}}"
+		{{- $n = decrease $n -}}
+		{{- if gt $n 0 -}}
+			,
+		{{- end -}}
+	{{- end -}}
+
+	) VALUES ( 
+
+	{{- $idx := 1 -}}
+	{{- $n := len .Columns -}}
+
+	{{- range $columnName, $column := .Columns -}}
+		${{- $idx -}}
+		{{- if lt $idx $n -}}
+			,
+		{{- end -}}
+		{{- $idx = increase $idx -}}
+	{{- end -}}
+
+	)`)
 
 	if err != nil {
 		return err
@@ -39,7 +78,22 @@ func insertStudent(student *Student) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(student.Branch_Id, student.Course_Id, student.Student_Father, student.Student_Id, student.Student_Name)
+	_, err = stmt.Exec(
+
+	{{- $n = len $.Columns -}}
+	{{- $tableName := .TableName -}}
+
+	{{- range $columnName, $column := .Columns -}}
+		{{- $tableName -}}_.Column_ {{- $columnName -}}
+
+		{{- $n = decrease $n -}}
+		{{- if gt $n 0 -}}
+			,
+		{{- end -}}
+
+	{{- end -}}
+
+	)
 
 	if err != nil {
 		return err
@@ -48,43 +102,135 @@ func insertStudent(student *Student) error {
 	return nil
 }
 
-func readAllStudents() ([]Student, error) {
-	rows, err := db.Query(`SELECT * FROM "students"`)
+{{ end }}
+
+
+{{- define "readAll" -}}
+
+func db_readAll_ {{- .TableName -}}  () ([]Table_ {{- .TableName -}} , error) {
+	rows, err := db.Query(`SELECT * FROM "{{- .TableName -}}"`)
+	
+	data := []Table_ {{- .TableName -}}  {}
 
 	if err != nil {
-		return []Student{}, err
+		return data, err
 	}
 
 	defer rows.Close()
 
-	students := []Student{}
-
 	for rows.Next() {
-		student := Student{}
-		rows.Scan(&student.Branch_Id, &student.Course_Id, &student.Student_Father, &student.Student_Id, &student.Student_Name)
-		students = append(students, student)
+		item := Table_ {{- .TableName -}} {}
+		
+		rows.Scan(
+
+		{{- if eq (len .PrimaryKey) 0 -}}
+			&item.ID__,
+		{{- end -}}
+
+		{{- $n := len .Columns  -}}
+
+		{{- range $columnName, $column := .Columns -}}
+
+			{{- $n = decrease $n -}}
+
+			&item.Column_ {{- $columnName -}}
+
+			{{- if gt $n 0 -}}
+				,
+			{{- end -}}
+
+		{{- end -}}
+
+		)
+
+		data = append(data, item)
 	}
 
-	return students, nil
+	return data, nil
 }
 
-func readStudentByPK(id int) (Student, error) {
-	stmt, err := db.Prepare(`SELECT * FROM "students" WHERE "Student_Id" = $1`)
+{{- end -}}
+
+{{ define "readByPK" }}
+
+func db_read_ {{- .TableName -}} _ByPK(pk {{ getPkType . }}) (Table_ {{- .TableName -}}, error) {
+	stmt, err := db.Prepare(`SELECT * FROM "{{- .TableName -}}" WHERE 
+	
+	{{- if eq (len .PrimaryKey) 0 -}}
+		{{- " \"__ID\" " -}}
+	{{- else -}}
+		{{- " " -}} "{{- .PrimaryKey -}}" {{- " " -}}
+	{{- end -}}
+	= $1`)
+
+	item := Table_ {{- .TableName -}} {}
+
 	if err != nil {
-		return Student{}, err
+		return item, err
 	}
 
-	var student Student
+	if err := stmt.QueryRow(pk).Scan(
 
-	if err := stmt.QueryRow(id).Scan(&student.Branch_Id, &student.Course_Id, &student.Student_Father, &student.Student_Id, &student.Student_Name); err != nil {
-		return Student{}, err
+	{{- if eq (len .PrimaryKey) 0 -}}
+		{{- "&item.ID__," -}}
+	{{- end -}}
+
+	{{- $n := len .Columns -}}
+
+	{{- range $columnName, $column := .Columns -}}
+		&item.Column_ {{- $columnName -}}
+
+		{{- $n = decrease $n -}}
+		{{- if gt $n 0 -}}
+			,
+		{{- end -}}
+
+	{{- end -}}
+	
+	
+	); err != nil {
+		return item, err
 	}
 
-	return student, nil
+	return item, nil
 }
 
-func updateStudentByPK(student *Student, id int) error {
-	stmt, err := db.Prepare(`UPDATE "students" SET "Branch_Id" = $1, "Course_Id" = $2, "Student_Father" = $3, "Student_Id" = $4, "Student_Name" = $5 WHERE "Student_Id" = $6`)
+{{ end }}
+
+{{ define "update" }}
+
+func db_update_ {{- .TableName -}} (item *Table_ {{- .TableName -}}, pk {{ getPkType . }}) error {
+	stmt, err := db.Prepare(`UPDATE "{{- .TableName -}}" SET {{- " " -}}
+
+	{{- $idx := 1 -}}
+	{{- $n := len .Columns -}}
+
+	{{- if eq (len .PrimaryKey) 0 -}}
+		"__ID" = $1,
+		{{- $idx = increase $idx -}}
+		{{- $n = increase $n -}}
+	{{- end -}}
+
+	{{- range $columnName, $column := .Columns -}}
+		"{{ $columnName -}}" = $ {{- $idx -}}
+
+		{{- if lt $idx $n -}}
+			,
+		{{- end -}}
+
+		{{- $idx = increase $idx -}}
+
+	{{- end -}}
+
+	{{- " " -}} WHERE {{- " " -}}
+	
+	{{- if eq (len .PrimaryKey) 0 -}}
+		"__ID" == $ {{- $idx -}}
+	{{- else -}}
+		"{{ .PrimaryKey }}" = $ {{- $idx -}}
+	{{- end -}}
+
+	`)
 
 	if err != nil {
 		return err
@@ -92,35 +238,59 @@ func updateStudentByPK(student *Student, id int) error {
 
 	defer stmt.Close()
 
-	result, err := stmt.Exec(student.Branch_Id, student.Course_Id, student.Student_Father, student.Student_Id, student.Student_Name, id)
+	result, err := stmt.Exec(
+
+	{{- if eq (len .PrimaryKey) 0 -}}
+		item.ID__,
+	{{- end -}}
+	
+	{{- range $columnName, $column := .Columns -}}
+		item.Column_ {{- $columnName -}}, 
+	{{- end -}}
+	
+	pk)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no student found with provided id")
+		return errors.New("no row found with provided pk")
 	}
 
 	return nil
 }
 
-func deleteStudentByPK(id int) error {
-	stmt, err := db.Prepare(`DELETE FROM "students" WHERE "Student_Id" = $1`)
+{{ end }}
+
+{{ define "delete" }}
+
+func db_delete_ {{- .TableName -}} (pk {{ getPkType . }}) error {
+	stmt, err := db.Prepare(`DELETE FROM "{{- .TableName -}}" WHERE {{- " " -}}
+	
+	{{- if eq (len .PrimaryKey) 0 -}}
+		"__ID" = $1
+	{{- else -}}
+		"{{- .PrimaryKey -}}" = $1
+	{{- end -}}
+
+	`)
 
 	if err != nil {
 		return err
 	}
 
-	result, err := stmt.Exec(id)
+	result, err := stmt.Exec(pk)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no student found with provided id")
+		return errors.New("no row found with provided pk")
 	}
 
 	return nil
 }
+
+{{ end }}

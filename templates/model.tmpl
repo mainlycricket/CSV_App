@@ -1,22 +1,13 @@
 package main
 
-{{- range $tableName, $table := . }}
-    {{- range $columnName, $column := $table.Columns -}}
-        {{- if or (HasPrefix  $column.DataType "time") (HasPrefix  $column.DataType "date") -}}
-            {{- "\n" -}} import "time"
-            {{- break -}}
-        {{- end -}}
-    {{- end -}}
-{{- end -}}
-
 {{ range $tableName, $table := . }}
 type Table_{{ $tableName }} struct {
     {{- if eq (len $table.PrimaryKey) 0 -}}
-    ID__ uint `json:"__ID"`;
+    ID__ CustomNullInt `json:"__ID"`;
     {{- end -}}
 
     {{- range $columnName, $column := $table.Columns -}}
-	Column_{{ $columnName }} {{ getGoType $column.DataType }} `json:"{{ $columnName }}"`;
+	Column_{{ $columnName }} {{ getDbType $column.DataType }} `json:"{{ $columnName }}"`;
     {{- end -}}
 }
 {{ end -}}

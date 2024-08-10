@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
-	"time"
+	"net/url"
 )
 
 type ApiResponse struct {
@@ -33,9 +32,9 @@ func startServer() *http.Server {
 		// {{ $tableName }} routes
 		http.HandleFunc("POST /{{- $tableName -}}", api_create_ {{- $tableName -}})
 		http.HandleFunc("GET /{{- $tableName -}}", api_getAll_ {{- $tableName -}})
-		http.HandleFunc("GET /{{- $tableName -}}/{id}", api_getByPk_ {{- $tableName -}})
-		http.HandleFunc("PUT /{{- $tableName -}}/{id}", api_update_ {{- $tableName -}})
-		http.HandleFunc("DELETE /{{- $tableName -}}/{id}", api_delete_ {{- $tableName -}})
+		http.HandleFunc("GET /{{- $tableName -}}ByPK", api_getByPk_ {{- $tableName -}})
+		http.HandleFunc("PUT /{{- $tableName -}}", api_update_ {{- $tableName -}})
+		http.HandleFunc("DELETE /{{- $tableName -}}", api_delete_ {{- $tableName -}})
 	{{ end }}
 
 	s := &http.Server{
@@ -69,7 +68,9 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_insert_ {{- .TableName -}} (&item); err != nil {
+	ctx := r.Context()
+
+	if err := db_insert_ {{- .TableName -}} (ctx, &item); err != nil {
 		message := fmt.Sprintf("error while creating: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -86,7 +87,9 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data, err := db_readAll_ {{- .TableName -}} ()
+	ctx := r.Context()
+
+	data, err := db_readAll_ {{- .TableName -}} (ctx)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -104,16 +107,20 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast id", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	data, err := db_read_ {{- .TableName -}} _ByPK (pk)
+	id := values.Get("id")
+	ctx := r.Context()
+
+	data, err := db_read_ {{- .TableName -}} _ByPK (ctx, id)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading data: %v", err)
@@ -131,14 +138,18 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	id := values.Get("id")
+	ctx := r.Context()
 
 	var item Table_ {{- .TableName }}
 
@@ -150,7 +161,7 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_update_ {{- .TableName -}} (&item, pk); err != nil {
+	if err := db_update_ {{- .TableName -}} (ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -166,16 +177,20 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type caste", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	if err := db_delete_ {{- .TableName -}} (pk); err != nil {
+	id := values.Get("id")
+	ctx := r.Context()
+
+	if err := db_delete_ {{- .TableName -}} (ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)

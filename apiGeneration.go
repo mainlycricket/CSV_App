@@ -9,52 +9,160 @@ import (
 	"text/template"
 )
 
-func (dbSchema *DB) writeModels(filePath string) error {
-	basePath, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+func (dbSchema *DB) writeAppFiles(appPath string) error {
+	errorChannel := make(chan error, 5)
 
-	templateFileName := "model.tmpl"
+	go writeEnvFile(filepath.Join(appPath, ".env"), errorChannel)
+	go writeNullTypes(filepath.Join(appPath, "nullTypes.go"), errorChannel)
+	go dbSchema.writeModels(filepath.Join(appPath, "models.go"), errorChannel)
+	go dbSchema.writeDbUtils(filepath.Join(appPath, "dbUtils.go"), errorChannel)
+	go dbSchema.writeHttpUtils(filepath.Join(appPath, "httpUtils.go"), errorChannel)
+	go dbSchema.writeMain(filepath.Join(appPath, "main.go"), errorChannel)
 
-	funcs := template.FuncMap{
-		"getGoType": getGoType,
-		"HasPrefix": strings.HasPrefix,
-	}
-
-	templatePath := filepath.Join(basePath, "templates", templateFileName)
-
-	template, err := template.New(templateFileName).Funcs(funcs).ParseFiles(templatePath)
-	if err != nil {
-		return err
-	}
-
-	fp, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-
-	defer fp.Close()
-
-	if err := template.Execute(fp, dbSchema.Tables); err != nil {
-		return err
+	count := 0
+	for err := range errorChannel {
+		if err != nil {
+			return err
+		}
+		count++
+		if count == 6 {
+			close(errorChannel)
+		}
 	}
 
 	return nil
 }
 
-func (dbSchema *DB) writeDbUtils(filePath string) error {
+func writeEnvFile(filePath string, channel chan<- error) {
+	var mainError error
+
+	defer func() {
+		channel <- mainError
+	}()
+
 	basePath, err := os.Getwd()
 	if err != nil {
-		return err
+		mainError = err
+		return
+	}
+
+	templateFileName := "env.tmpl"
+
+	templatePath := filepath.Join(basePath, "templates", templateFileName)
+
+	template, err := template.New(templateFileName).ParseFiles(templatePath)
+	if err != nil {
+		mainError = err
+		return
+	}
+
+	fp, err := os.Create(filePath)
+	if err != nil {
+		mainError = err
+		return
+	}
+
+	defer fp.Close()
+
+	if err := template.Execute(fp, nil); err != nil {
+		mainError = err
+		return
+	}
+}
+
+func writeNullTypes(filePath string, channel chan<- error) {
+	var mainError error
+
+	defer func() {
+		channel <- mainError
+	}()
+
+	basePath, err := os.Getwd()
+	if err != nil {
+		mainError = err
+		return
+	}
+
+	templateFileName := "nullTypes.tmpl"
+
+	templatePath := filepath.Join(basePath, "templates", templateFileName)
+
+	template, err := template.New(templateFileName).ParseFiles(templatePath)
+	if err != nil {
+		mainError = err
+		return
+	}
+
+	fp, err := os.Create(filePath)
+	if err != nil {
+		mainError = err
+		return
+	}
+
+	defer fp.Close()
+
+	if err := template.Execute(fp, nil); err != nil {
+		mainError = err
+		return
+	}
+}
+
+func (dbSchema *DB) writeModels(filePath string, channel chan<- error) {
+	var mainError error
+
+	defer func() {
+		channel <- mainError
+	}()
+
+	basePath, err := os.Getwd()
+	if err != nil {
+		mainError = err
+		return
+	}
+
+	templateFileName := "model.tmpl"
+
+	funcs := template.FuncMap{"getDbType": getDbType}
+
+	templatePath := filepath.Join(basePath, "templates", templateFileName)
+
+	template, err := template.New(templateFileName).Funcs(funcs).ParseFiles(templatePath)
+	if err != nil {
+		mainError = err
+		return
+	}
+
+	fp, err := os.Create(filePath)
+	if err != nil {
+		mainError = err
+		return
+	}
+
+	defer fp.Close()
+
+	if err := template.Execute(fp, dbSchema.Tables); err != nil {
+		mainError = err
+		return
+	}
+}
+
+func (dbSchema *DB) writeDbUtils(filePath string, channel chan<- error) {
+	var mainError error
+
+	defer func() {
+		channel <- mainError
+	}()
+
+	basePath, err := os.Getwd()
+	if err != nil {
+		mainError = err
+		return
 	}
 
 	templateFileName := "db.tmpl"
 
 	funcs := template.FuncMap{
-		"getGoType": getGoType,
-		"getPkType": getPkType,
-		"HasPrefix": strings.HasPrefix,
+		"HasSuffix": strings.HasSuffix,
 		"increase":  increase,
 		"decrease":  decrease,
 	}
@@ -63,64 +171,72 @@ func (dbSchema *DB) writeDbUtils(filePath string) error {
 
 	template, err := template.New(templateFileName).Funcs(funcs).ParseFiles(templatePath)
 	if err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	fp, err := os.Create(filePath)
 	if err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	defer fp.Close()
 
 	if err := template.Execute(fp, dbSchema.Tables); err != nil {
-		return err
+		mainError = err
+		return
 	}
-
-	return nil
 }
 
-func (dbSchema *DB) writeHttpUtils(filePath string) error {
+func (dbSchema *DB) writeHttpUtils(filePath string, channel chan<- error) {
+	var mainError error
+
+	defer func() {
+		channel <- mainError
+	}()
+
 	basePath, err := os.Getwd()
 	if err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	templateFileName := "http.tmpl"
 
-	funcs := template.FuncMap{
-		"getGoType": getGoType,
-		"getPkType": getPkType,
-		"HasPrefix": strings.HasPrefix,
-		"increase":  increase,
-		"decrease":  decrease,
-	}
-
 	templatePath := filepath.Join(basePath, "templates", templateFileName)
 
-	template, err := template.New(templateFileName).Funcs(funcs).ParseFiles(templatePath)
+	template, err := template.New(templateFileName).ParseFiles(templatePath)
 	if err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	fp, err := os.Create(filePath)
 	if err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	defer fp.Close()
 
 	if err := template.Execute(fp, dbSchema.Tables); err != nil {
-		return err
+		mainError = err
+		return
 	}
-
-	return nil
 }
 
-func (dbSchema *DB) writeMain(filePath string) error {
+func (dbSchema *DB) writeMain(filePath string, channel chan<- error) {
+	var mainError error
+
+	defer func() {
+		channel <- mainError
+	}()
+
 	basePath, err := os.Getwd()
 	if err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	templateFileName := "main.tmpl"
@@ -129,21 +245,22 @@ func (dbSchema *DB) writeMain(filePath string) error {
 
 	template, err := template.New(templateFileName).ParseFiles(templatePath)
 	if err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	fp, err := os.Create(filePath)
 	if err != nil {
-		return err
+		mainError = err
+		return
 	}
 
 	defer fp.Close()
 
 	if err := template.Execute(fp, nil); err != nil {
-		return err
+		mainError = err
+		return
 	}
-
-	return nil
 }
 
 func executeAppCommands(appPath string) error {
@@ -174,7 +291,7 @@ func executeAppCommands(appPath string) error {
 	return nil
 }
 
-func getGoType(datatype string) string {
+func getDbType(datatype string) string {
 	res := ""
 
 	if strings.HasSuffix(datatype, "[]") {
@@ -184,30 +301,20 @@ func getGoType(datatype string) string {
 
 	switch datatype {
 	case "integer":
-		res += "int"
+		res += "CustomNullInt"
 	case "real":
-		res += "float64"
+		res += "CustomNullFloat"
 	case "text":
-		res += "string"
+		res += "CustomNullString"
 	case "boolean":
-		res += "bool"
+		res += "CustomNullBool"
 	case "date":
-		res += "time.Time"
+		res += "CustomNullDate"
 	case "time":
-		res += "time.Time"
+		res += "CustomNullTime"
 	case "timestamptz":
-		res += "time.Time"
+		res += "CustomNullDateTime"
 	}
 
 	return res
-}
-
-func getPkType(table Table) string {
-	if table.PrimaryKey == "" {
-		return "uint"
-	}
-
-	pk := table.Columns[table.PrimaryKey]
-
-	return getGoType(pk.DataType)
 }

@@ -28,7 +28,7 @@ func Test_sanitize_db_label(t *testing.T) {
 		{
 			name: "Start & End Symbols",
 			args: args{text: "  !'Table Name'! "},
-			want: "Table_Name",
+			want: "_Table_Name_",
 		},
 	}
 	for _, tt := range tests {

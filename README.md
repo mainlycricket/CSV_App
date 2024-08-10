@@ -35,6 +35,14 @@ psql -h localhost -U postgres -c 'CREATE DATABASE "DB_Name"'
 psql -h localhost -U postgres -d "DB_Name" -f data/db.sql
 ```
 
+#### Step 4: Create Application
+
+```bash
+go build . && ./CSV_App app
+```
+
+- This generates a standalone app in `./app` directory
+
 ### Data Types
 
 - integer

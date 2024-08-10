@@ -1,21 +1,64 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/lib/pq"
 )
 
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "postgres"
-	password = "password"
-	dbname   = "CSV_App"
-)
+func readEnvFile() error {
+	basePath, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	data, err := os.ReadFile(filepath.Join(basePath, ".env"))
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(data), "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+
+		arr := strings.SplitN(line, "=", 2)
+		if len(arr) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(arr[0])
+		value := strings.TrimSpace(arr[1])
+		if err := os.Setenv(key, value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 func connectDB() (*sql.DB, error) {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s", host, port, user, password, dbname)
+	if err := readEnvFile(); err != nil {
+		errorMessage := fmt.Sprintf("error while reading .env file: %v", err)
+		return nil, errors.New(errorMessage)
+	}
+
+	host := os.Getenv("host")
+	port := os.Getenv("port")
+	user := os.Getenv("user")
+	password := os.Getenv("password")
+	dbname := os.Getenv("dbname")
+
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s", host, port, user, password, dbname)
 
 	db, err := sql.Open("postgres", connStr)
 
@@ -32,8 +75,8 @@ func connectDB() (*sql.DB, error) {
 
 // TypeTest CRUD
 
-func db_insert_TypeTest(TypeTest_ *Table_TypeTest) error {
-	stmt, err := db.Prepare(`INSERT INTO "TypeTest" ("Bool","Bool_Arr","Date","DateTime","Date_arr","Datetime_Arr","Float","Float_arr","Int","Int_Arr","Str_Arr","String","Time","Time_Arr") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`)
+func db_insert_TypeTest(ctx context.Context, item *Table_TypeTest) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "TypeTest" ("Bool","Bool_Arr","Date","DateTime","Date_arr","Datetime_Arr","Float","Float_arr","Int","Int_Arr","Str_Arr","String","Time","Time_Arr") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`)
 
 	if err != nil {
 		return err
@@ -41,7 +84,7 @@ func db_insert_TypeTest(TypeTest_ *Table_TypeTest) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(TypeTest_.Column_Bool, TypeTest_.Column_Bool_Arr, TypeTest_.Column_Date, TypeTest_.Column_DateTime, TypeTest_.Column_Date_arr, TypeTest_.Column_Datetime_Arr, TypeTest_.Column_Float, TypeTest_.Column_Float_arr, TypeTest_.Column_Int, TypeTest_.Column_Int_Arr, TypeTest_.Column_Str_Arr, TypeTest_.Column_String, TypeTest_.Column_Time, TypeTest_.Column_Time_Arr)
+	_, err = stmt.ExecContext(ctx, item.Column_Bool, pq.Array(item.Column_Bool_Arr), item.Column_Date, item.Column_DateTime, pq.Array(item.Column_Date_arr), pq.Array(item.Column_Datetime_Arr), item.Column_Float, pq.Array(item.Column_Float_arr), item.Column_Int, pq.Array(item.Column_Int_Arr), pq.Array(item.Column_Str_Arr), item.Column_String, item.Column_Time, pq.Array(item.Column_Time_Arr))
 
 	if err != nil {
 		return err
@@ -50,8 +93,8 @@ func db_insert_TypeTest(TypeTest_ *Table_TypeTest) error {
 	return nil
 }
 
-func db_readAll_TypeTest() ([]Table_TypeTest, error) {
-	rows, err := db.Query(`SELECT * FROM "TypeTest"`)
+func db_readAll_TypeTest(ctx context.Context) ([]Table_TypeTest, error) {
+	rows, err := db.QueryContext(ctx, `SELECT * FROM "TypeTest"`)
 
 	data := []Table_TypeTest{}
 
@@ -64,7 +107,7 @@ func db_readAll_TypeTest() ([]Table_TypeTest, error) {
 	for rows.Next() {
 		item := Table_TypeTest{}
 
-		rows.Scan(&item.ID__, &item.Column_Bool, &item.Column_Bool_Arr, &item.Column_Date, &item.Column_DateTime, &item.Column_Date_arr, &item.Column_Datetime_Arr, &item.Column_Float, &item.Column_Float_arr, &item.Column_Int, &item.Column_Int_Arr, &item.Column_Str_Arr, &item.Column_String, &item.Column_Time, &item.Column_Time_Arr)
+		rows.Scan(&item.ID__, &item.Column_Bool, pq.Array(&item.Column_Bool_Arr), &item.Column_Date, &item.Column_DateTime, pq.Array(&item.Column_Date_arr), pq.Array(&item.Column_Datetime_Arr), &item.Column_Float, pq.Array(&item.Column_Float_arr), &item.Column_Int, pq.Array(&item.Column_Int_Arr), pq.Array(&item.Column_Str_Arr), &item.Column_String, &item.Column_Time, pq.Array(&item.Column_Time_Arr))
 
 		data = append(data, item)
 	}
@@ -72,8 +115,8 @@ func db_readAll_TypeTest() ([]Table_TypeTest, error) {
 	return data, nil
 }
 
-func db_read_TypeTest_ByPK(pk uint) (Table_TypeTest, error) {
-	stmt, err := db.Prepare(`SELECT * FROM "TypeTest" WHERE "__ID" = $1`)
+func db_read_TypeTest_ByPK(ctx context.Context, id string) (Table_TypeTest, error) {
+	stmt, err := db.PrepareContext(ctx, `SELECT * FROM "TypeTest" WHERE "__ID" = $1`)
 
 	item := Table_TypeTest{}
 
@@ -81,15 +124,15 @@ func db_read_TypeTest_ByPK(pk uint) (Table_TypeTest, error) {
 		return item, err
 	}
 
-	if err := stmt.QueryRow(pk).Scan(&item.ID__, &item.Column_Bool, &item.Column_Bool_Arr, &item.Column_Date, &item.Column_DateTime, &item.Column_Date_arr, &item.Column_Datetime_Arr, &item.Column_Float, &item.Column_Float_arr, &item.Column_Int, &item.Column_Int_Arr, &item.Column_Str_Arr, &item.Column_String, &item.Column_Time, &item.Column_Time_Arr); err != nil {
+	if err := stmt.QueryRowContext(ctx, id).Scan(&item.ID__, &item.Column_Bool, pq.Array(&item.Column_Bool_Arr), &item.Column_Date, &item.Column_DateTime, pq.Array(&item.Column_Date_arr), pq.Array(&item.Column_Datetime_Arr), &item.Column_Float, pq.Array(&item.Column_Float_arr), &item.Column_Int, pq.Array(&item.Column_Int_Arr), pq.Array(&item.Column_Str_Arr), &item.Column_String, &item.Column_Time, pq.Array(&item.Column_Time_Arr)); err != nil {
 		return item, err
 	}
 
 	return item, nil
 }
 
-func db_update_TypeTest(item *Table_TypeTest, pk uint) error {
-	stmt, err := db.Prepare(`UPDATE "TypeTest" SET "__ID" = $1,"Bool" = $2,"Bool_Arr" = $3,"Date" = $4,"DateTime" = $5,"Date_arr" = $6,"Datetime_Arr" = $7,"Float" = $8,"Float_arr" = $9,"Int" = $10,"Int_Arr" = $11,"Str_Arr" = $12,"String" = $13,"Time" = $14,"Time_Arr" = $15 WHERE "__ID" == $16`)
+func db_update_TypeTest(ctx context.Context, id string, item *Table_TypeTest) error {
+	stmt, err := db.PrepareContext(ctx, `UPDATE "TypeTest" SET "__ID" = $1,"Bool" = $2,"Bool_Arr" = $3,"Date" = $4,"DateTime" = $5,"Date_arr" = $6,"Datetime_Arr" = $7,"Float" = $8,"Float_arr" = $9,"Int" = $10,"Int_Arr" = $11,"Str_Arr" = $12,"String" = $13,"Time" = $14,"Time_Arr" = $15 WHERE "__ID" == $16`)
 
 	if err != nil {
 		return err
@@ -97,34 +140,34 @@ func db_update_TypeTest(item *Table_TypeTest, pk uint) error {
 
 	defer stmt.Close()
 
-	result, err := stmt.Exec(item.ID__, item.Column_Bool, item.Column_Bool_Arr, item.Column_Date, item.Column_DateTime, item.Column_Date_arr, item.Column_Datetime_Arr, item.Column_Float, item.Column_Float_arr, item.Column_Int, item.Column_Int_Arr, item.Column_Str_Arr, item.Column_String, item.Column_Time, item.Column_Time_Arr, pk)
+	result, err := stmt.ExecContext(ctx, item.ID__, &item.Column_Bool, pq.Array(&item.Column_Bool_Arr), &item.Column_Date, &item.Column_DateTime, pq.Array(&item.Column_Date_arr), pq.Array(&item.Column_Datetime_Arr), &item.Column_Float, pq.Array(&item.Column_Float_arr), &item.Column_Int, pq.Array(&item.Column_Int_Arr), pq.Array(&item.Column_Str_Arr), &item.Column_String, &item.Column_Time, pq.Array(&item.Column_Time_Arr), id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
 }
 
-func db_delete_TypeTest(pk uint) error {
-	stmt, err := db.Prepare(`DELETE FROM "TypeTest" WHERE "__ID" = $1`)
+func db_delete_TypeTest(ctx context.Context, id string) error {
+	stmt, err := db.PrepareContext(ctx, `DELETE FROM "TypeTest" WHERE "__ID" = $1`)
 
 	if err != nil {
 		return err
 	}
 
-	result, err := stmt.Exec(pk)
+	result, err := stmt.ExecContext(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
@@ -132,8 +175,8 @@ func db_delete_TypeTest(pk uint) error {
 
 // branches CRUD
 
-func db_insert_branches(branches_ *Table_branches) error {
-	stmt, err := db.Prepare(`INSERT INTO "branches" ("Branch_Id","Branch_Name","Course_Id","Teachers") VALUES ($1,$2,$3,$4)`)
+func db_insert_branches(ctx context.Context, item *Table_branches) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "branches" ("Branch_Id","Branch_Name","Course_Id","Teachers") VALUES ($1,$2,$3,$4)`)
 
 	if err != nil {
 		return err
@@ -141,7 +184,7 @@ func db_insert_branches(branches_ *Table_branches) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(branches_.Column_Branch_Id, branches_.Column_Branch_Name, branches_.Column_Course_Id, branches_.Column_Teachers)
+	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, pq.Array(item.Column_Teachers))
 
 	if err != nil {
 		return err
@@ -150,8 +193,8 @@ func db_insert_branches(branches_ *Table_branches) error {
 	return nil
 }
 
-func db_readAll_branches() ([]Table_branches, error) {
-	rows, err := db.Query(`SELECT * FROM "branches"`)
+func db_readAll_branches(ctx context.Context) ([]Table_branches, error) {
+	rows, err := db.QueryContext(ctx, `SELECT * FROM "branches"`)
 
 	data := []Table_branches{}
 
@@ -164,7 +207,7 @@ func db_readAll_branches() ([]Table_branches, error) {
 	for rows.Next() {
 		item := Table_branches{}
 
-		rows.Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Column_Course_Id, &item.Column_Teachers)
+		rows.Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Column_Course_Id, pq.Array(&item.Column_Teachers))
 
 		data = append(data, item)
 	}
@@ -172,8 +215,8 @@ func db_readAll_branches() ([]Table_branches, error) {
 	return data, nil
 }
 
-func db_read_branches_ByPK(pk int) (Table_branches, error) {
-	stmt, err := db.Prepare(`SELECT * FROM "branches" WHERE "Branch_Id" = $1`)
+func db_read_branches_ByPK(ctx context.Context, id string) (Table_branches, error) {
+	stmt, err := db.PrepareContext(ctx, `SELECT * FROM "branches" WHERE "Branch_Id" = $1`)
 
 	item := Table_branches{}
 
@@ -181,15 +224,15 @@ func db_read_branches_ByPK(pk int) (Table_branches, error) {
 		return item, err
 	}
 
-	if err := stmt.QueryRow(pk).Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Column_Course_Id, &item.Column_Teachers); err != nil {
+	if err := stmt.QueryRowContext(ctx, id).Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Column_Course_Id, pq.Array(&item.Column_Teachers)); err != nil {
 		return item, err
 	}
 
 	return item, nil
 }
 
-func db_update_branches(item *Table_branches, pk int) error {
-	stmt, err := db.Prepare(`UPDATE "branches" SET "Branch_Id" = $1,"Branch_Name" = $2,"Course_Id" = $3,"Teachers" = $4 WHERE "Branch_Id" = $5`)
+func db_update_branches(ctx context.Context, id string, item *Table_branches) error {
+	stmt, err := db.PrepareContext(ctx, `UPDATE "branches" SET "Branch_Id" = $1,"Branch_Name" = $2,"Course_Id" = $3,"Teachers" = $4 WHERE "Branch_Id" = $5`)
 
 	if err != nil {
 		return err
@@ -197,34 +240,34 @@ func db_update_branches(item *Table_branches, pk int) error {
 
 	defer stmt.Close()
 
-	result, err := stmt.Exec(item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, item.Column_Teachers, pk)
+	result, err := stmt.ExecContext(ctx, &item.Column_Branch_Id, &item.Column_Branch_Name, &item.Column_Course_Id, pq.Array(&item.Column_Teachers), id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
 }
 
-func db_delete_branches(pk int) error {
-	stmt, err := db.Prepare(`DELETE FROM "branches" WHERE "Branch_Id" = $1`)
+func db_delete_branches(ctx context.Context, id string) error {
+	stmt, err := db.PrepareContext(ctx, `DELETE FROM "branches" WHERE "Branch_Id" = $1`)
 
 	if err != nil {
 		return err
 	}
 
-	result, err := stmt.Exec(pk)
+	result, err := stmt.ExecContext(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
@@ -232,8 +275,8 @@ func db_delete_branches(pk int) error {
 
 // courses CRUD
 
-func db_insert_courses(courses_ *Table_courses) error {
-	stmt, err := db.Prepare(`INSERT INTO "courses" ("Course_Id","Course_Name","Lateral_Allowed") VALUES ($1,$2,$3)`)
+func db_insert_courses(ctx context.Context, item *Table_courses) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "courses" ("Course_Id","Course_Name","Lateral_Allowed") VALUES ($1,$2,$3)`)
 
 	if err != nil {
 		return err
@@ -241,7 +284,7 @@ func db_insert_courses(courses_ *Table_courses) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(courses_.Column_Course_Id, courses_.Column_Course_Name, courses_.Column_Lateral_Allowed)
+	_, err = stmt.ExecContext(ctx, item.Column_Course_Id, item.Column_Course_Name, item.Column_Lateral_Allowed)
 
 	if err != nil {
 		return err
@@ -250,8 +293,8 @@ func db_insert_courses(courses_ *Table_courses) error {
 	return nil
 }
 
-func db_readAll_courses() ([]Table_courses, error) {
-	rows, err := db.Query(`SELECT * FROM "courses"`)
+func db_readAll_courses(ctx context.Context) ([]Table_courses, error) {
+	rows, err := db.QueryContext(ctx, `SELECT * FROM "courses"`)
 
 	data := []Table_courses{}
 
@@ -272,8 +315,8 @@ func db_readAll_courses() ([]Table_courses, error) {
 	return data, nil
 }
 
-func db_read_courses_ByPK(pk int) (Table_courses, error) {
-	stmt, err := db.Prepare(`SELECT * FROM "courses" WHERE "Course_Id" = $1`)
+func db_read_courses_ByPK(ctx context.Context, id string) (Table_courses, error) {
+	stmt, err := db.PrepareContext(ctx, `SELECT * FROM "courses" WHERE "Course_Id" = $1`)
 
 	item := Table_courses{}
 
@@ -281,15 +324,15 @@ func db_read_courses_ByPK(pk int) (Table_courses, error) {
 		return item, err
 	}
 
-	if err := stmt.QueryRow(pk).Scan(&item.Column_Course_Id, &item.Column_Course_Name, &item.Column_Lateral_Allowed); err != nil {
+	if err := stmt.QueryRowContext(ctx, id).Scan(&item.Column_Course_Id, &item.Column_Course_Name, &item.Column_Lateral_Allowed); err != nil {
 		return item, err
 	}
 
 	return item, nil
 }
 
-func db_update_courses(item *Table_courses, pk int) error {
-	stmt, err := db.Prepare(`UPDATE "courses" SET "Course_Id" = $1,"Course_Name" = $2,"Lateral_Allowed" = $3 WHERE "Course_Id" = $4`)
+func db_update_courses(ctx context.Context, id string, item *Table_courses) error {
+	stmt, err := db.PrepareContext(ctx, `UPDATE "courses" SET "Course_Id" = $1,"Course_Name" = $2,"Lateral_Allowed" = $3 WHERE "Course_Id" = $4`)
 
 	if err != nil {
 		return err
@@ -297,34 +340,34 @@ func db_update_courses(item *Table_courses, pk int) error {
 
 	defer stmt.Close()
 
-	result, err := stmt.Exec(item.Column_Course_Id, item.Column_Course_Name, item.Column_Lateral_Allowed, pk)
+	result, err := stmt.ExecContext(ctx, &item.Column_Course_Id, &item.Column_Course_Name, &item.Column_Lateral_Allowed, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
 }
 
-func db_delete_courses(pk int) error {
-	stmt, err := db.Prepare(`DELETE FROM "courses" WHERE "Course_Id" = $1`)
+func db_delete_courses(ctx context.Context, id string) error {
+	stmt, err := db.PrepareContext(ctx, `DELETE FROM "courses" WHERE "Course_Id" = $1`)
 
 	if err != nil {
 		return err
 	}
 
-	result, err := stmt.Exec(pk)
+	result, err := stmt.ExecContext(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
@@ -332,8 +375,8 @@ func db_delete_courses(pk int) error {
 
 // empty CRUD
 
-func db_insert_empty(empty_ *Table_empty) error {
-	stmt, err := db.Prepare(`INSERT INTO "empty" ("Col_1","Col_2","Col_3") VALUES ($1,$2,$3)`)
+func db_insert_empty(ctx context.Context, item *Table_empty) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "empty" ("Col_1","Col_2","Col_3") VALUES ($1,$2,$3)`)
 
 	if err != nil {
 		return err
@@ -341,7 +384,7 @@ func db_insert_empty(empty_ *Table_empty) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(empty_.Column_Col_1, empty_.Column_Col_2, empty_.Column_Col_3)
+	_, err = stmt.ExecContext(ctx, item.Column_Col_1, item.Column_Col_2, item.Column_Col_3)
 
 	if err != nil {
 		return err
@@ -350,8 +393,8 @@ func db_insert_empty(empty_ *Table_empty) error {
 	return nil
 }
 
-func db_readAll_empty() ([]Table_empty, error) {
-	rows, err := db.Query(`SELECT * FROM "empty"`)
+func db_readAll_empty(ctx context.Context) ([]Table_empty, error) {
+	rows, err := db.QueryContext(ctx, `SELECT * FROM "empty"`)
 
 	data := []Table_empty{}
 
@@ -372,8 +415,8 @@ func db_readAll_empty() ([]Table_empty, error) {
 	return data, nil
 }
 
-func db_read_empty_ByPK(pk uint) (Table_empty, error) {
-	stmt, err := db.Prepare(`SELECT * FROM "empty" WHERE "__ID" = $1`)
+func db_read_empty_ByPK(ctx context.Context, id string) (Table_empty, error) {
+	stmt, err := db.PrepareContext(ctx, `SELECT * FROM "empty" WHERE "__ID" = $1`)
 
 	item := Table_empty{}
 
@@ -381,15 +424,15 @@ func db_read_empty_ByPK(pk uint) (Table_empty, error) {
 		return item, err
 	}
 
-	if err := stmt.QueryRow(pk).Scan(&item.ID__, &item.Column_Col_1, &item.Column_Col_2, &item.Column_Col_3); err != nil {
+	if err := stmt.QueryRowContext(ctx, id).Scan(&item.ID__, &item.Column_Col_1, &item.Column_Col_2, &item.Column_Col_3); err != nil {
 		return item, err
 	}
 
 	return item, nil
 }
 
-func db_update_empty(item *Table_empty, pk uint) error {
-	stmt, err := db.Prepare(`UPDATE "empty" SET "__ID" = $1,"Col_1" = $2,"Col_2" = $3,"Col_3" = $4 WHERE "__ID" == $5`)
+func db_update_empty(ctx context.Context, id string, item *Table_empty) error {
+	stmt, err := db.PrepareContext(ctx, `UPDATE "empty" SET "__ID" = $1,"Col_1" = $2,"Col_2" = $3,"Col_3" = $4 WHERE "__ID" == $5`)
 
 	if err != nil {
 		return err
@@ -397,34 +440,34 @@ func db_update_empty(item *Table_empty, pk uint) error {
 
 	defer stmt.Close()
 
-	result, err := stmt.Exec(item.ID__, item.Column_Col_1, item.Column_Col_2, item.Column_Col_3, pk)
+	result, err := stmt.ExecContext(ctx, item.ID__, &item.Column_Col_1, &item.Column_Col_2, &item.Column_Col_3, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
 }
 
-func db_delete_empty(pk uint) error {
-	stmt, err := db.Prepare(`DELETE FROM "empty" WHERE "__ID" = $1`)
+func db_delete_empty(ctx context.Context, id string) error {
+	stmt, err := db.PrepareContext(ctx, `DELETE FROM "empty" WHERE "__ID" = $1`)
 
 	if err != nil {
 		return err
 	}
 
-	result, err := stmt.Exec(pk)
+	result, err := stmt.ExecContext(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
@@ -432,8 +475,8 @@ func db_delete_empty(pk uint) error {
 
 // students CRUD
 
-func db_insert_students(students_ *Table_students) error {
-	stmt, err := db.Prepare(`INSERT INTO "students" ("Branch_Id","Course_Id","Student_Father","Student_Id","Student_Name") VALUES ($1,$2,$3,$4,$5)`)
+func db_insert_students(ctx context.Context, item *Table_students) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "students" ("Branch_Id","Course_Id","Student_Father","Student_Id","Student_Name") VALUES ($1,$2,$3,$4,$5)`)
 
 	if err != nil {
 		return err
@@ -441,7 +484,7 @@ func db_insert_students(students_ *Table_students) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(students_.Column_Branch_Id, students_.Column_Course_Id, students_.Column_Student_Father, students_.Column_Student_Id, students_.Column_Student_Name)
+	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Course_Id, item.Column_Student_Father, item.Column_Student_Id, item.Column_Student_Name)
 
 	if err != nil {
 		return err
@@ -450,8 +493,8 @@ func db_insert_students(students_ *Table_students) error {
 	return nil
 }
 
-func db_readAll_students() ([]Table_students, error) {
-	rows, err := db.Query(`SELECT * FROM "students"`)
+func db_readAll_students(ctx context.Context) ([]Table_students, error) {
+	rows, err := db.QueryContext(ctx, `SELECT * FROM "students"`)
 
 	data := []Table_students{}
 
@@ -472,8 +515,8 @@ func db_readAll_students() ([]Table_students, error) {
 	return data, nil
 }
 
-func db_read_students_ByPK(pk int) (Table_students, error) {
-	stmt, err := db.Prepare(`SELECT * FROM "students" WHERE "Student_Id" = $1`)
+func db_read_students_ByPK(ctx context.Context, id string) (Table_students, error) {
+	stmt, err := db.PrepareContext(ctx, `SELECT * FROM "students" WHERE "Student_Id" = $1`)
 
 	item := Table_students{}
 
@@ -481,15 +524,15 @@ func db_read_students_ByPK(pk int) (Table_students, error) {
 		return item, err
 	}
 
-	if err := stmt.QueryRow(pk).Scan(&item.Column_Branch_Id, &item.Column_Course_Id, &item.Column_Student_Father, &item.Column_Student_Id, &item.Column_Student_Name); err != nil {
+	if err := stmt.QueryRowContext(ctx, id).Scan(&item.Column_Branch_Id, &item.Column_Course_Id, &item.Column_Student_Father, &item.Column_Student_Id, &item.Column_Student_Name); err != nil {
 		return item, err
 	}
 
 	return item, nil
 }
 
-func db_update_students(item *Table_students, pk int) error {
-	stmt, err := db.Prepare(`UPDATE "students" SET "Branch_Id" = $1,"Course_Id" = $2,"Student_Father" = $3,"Student_Id" = $4,"Student_Name" = $5 WHERE "Student_Id" = $6`)
+func db_update_students(ctx context.Context, id string, item *Table_students) error {
+	stmt, err := db.PrepareContext(ctx, `UPDATE "students" SET "Branch_Id" = $1,"Course_Id" = $2,"Student_Father" = $3,"Student_Id" = $4,"Student_Name" = $5 WHERE "Student_Id" = $6`)
 
 	if err != nil {
 		return err
@@ -497,34 +540,34 @@ func db_update_students(item *Table_students, pk int) error {
 
 	defer stmt.Close()
 
-	result, err := stmt.Exec(item.Column_Branch_Id, item.Column_Course_Id, item.Column_Student_Father, item.Column_Student_Id, item.Column_Student_Name, pk)
+	result, err := stmt.ExecContext(ctx, &item.Column_Branch_Id, &item.Column_Course_Id, &item.Column_Student_Father, &item.Column_Student_Id, &item.Column_Student_Name, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
 }
 
-func db_delete_students(pk int) error {
-	stmt, err := db.Prepare(`DELETE FROM "students" WHERE "Student_Id" = $1`)
+func db_delete_students(ctx context.Context, id string) error {
+	stmt, err := db.PrepareContext(ctx, `DELETE FROM "students" WHERE "Student_Id" = $1`)
 
 	if err != nil {
 		return err
 	}
 
-	result, err := stmt.Exec(pk)
+	result, err := stmt.ExecContext(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
@@ -532,8 +575,8 @@ func db_delete_students(pk int) error {
 
 // subjects CRUD
 
-func db_insert_subjects(subjects_ *Table_subjects) error {
-	stmt, err := db.Prepare(`INSERT INTO "subjects" ("Branch_Id","Subject_Id","Subject_Name") VALUES ($1,$2,$3)`)
+func db_insert_subjects(ctx context.Context, item *Table_subjects) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "subjects" ("Branch_Id","Subject_Id","Subject_Name") VALUES ($1,$2,$3)`)
 
 	if err != nil {
 		return err
@@ -541,7 +584,7 @@ func db_insert_subjects(subjects_ *Table_subjects) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(subjects_.Column_Branch_Id, subjects_.Column_Subject_Id, subjects_.Column_Subject_Name)
+	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Subject_Id, item.Column_Subject_Name)
 
 	if err != nil {
 		return err
@@ -550,8 +593,8 @@ func db_insert_subjects(subjects_ *Table_subjects) error {
 	return nil
 }
 
-func db_readAll_subjects() ([]Table_subjects, error) {
-	rows, err := db.Query(`SELECT * FROM "subjects"`)
+func db_readAll_subjects(ctx context.Context) ([]Table_subjects, error) {
+	rows, err := db.QueryContext(ctx, `SELECT * FROM "subjects"`)
 
 	data := []Table_subjects{}
 
@@ -572,8 +615,8 @@ func db_readAll_subjects() ([]Table_subjects, error) {
 	return data, nil
 }
 
-func db_read_subjects_ByPK(pk int) (Table_subjects, error) {
-	stmt, err := db.Prepare(`SELECT * FROM "subjects" WHERE "Subject_Id" = $1`)
+func db_read_subjects_ByPK(ctx context.Context, id string) (Table_subjects, error) {
+	stmt, err := db.PrepareContext(ctx, `SELECT * FROM "subjects" WHERE "Subject_Id" = $1`)
 
 	item := Table_subjects{}
 
@@ -581,15 +624,15 @@ func db_read_subjects_ByPK(pk int) (Table_subjects, error) {
 		return item, err
 	}
 
-	if err := stmt.QueryRow(pk).Scan(&item.Column_Branch_Id, &item.Column_Subject_Id, &item.Column_Subject_Name); err != nil {
+	if err := stmt.QueryRowContext(ctx, id).Scan(&item.Column_Branch_Id, &item.Column_Subject_Id, &item.Column_Subject_Name); err != nil {
 		return item, err
 	}
 
 	return item, nil
 }
 
-func db_update_subjects(item *Table_subjects, pk int) error {
-	stmt, err := db.Prepare(`UPDATE "subjects" SET "Branch_Id" = $1,"Subject_Id" = $2,"Subject_Name" = $3 WHERE "Subject_Id" = $4`)
+func db_update_subjects(ctx context.Context, id string, item *Table_subjects) error {
+	stmt, err := db.PrepareContext(ctx, `UPDATE "subjects" SET "Branch_Id" = $1,"Subject_Id" = $2,"Subject_Name" = $3 WHERE "Subject_Id" = $4`)
 
 	if err != nil {
 		return err
@@ -597,34 +640,34 @@ func db_update_subjects(item *Table_subjects, pk int) error {
 
 	defer stmt.Close()
 
-	result, err := stmt.Exec(item.Column_Branch_Id, item.Column_Subject_Id, item.Column_Subject_Name, pk)
+	result, err := stmt.ExecContext(ctx, &item.Column_Branch_Id, &item.Column_Subject_Id, &item.Column_Subject_Name, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil
 }
 
-func db_delete_subjects(pk int) error {
-	stmt, err := db.Prepare(`DELETE FROM "subjects" WHERE "Subject_Id" = $1`)
+func db_delete_subjects(ctx context.Context, id string) error {
+	stmt, err := db.PrepareContext(ctx, `DELETE FROM "subjects" WHERE "Subject_Id" = $1`)
 
 	if err != nil {
 		return err
 	}
 
-	result, err := stmt.Exec(pk)
+	result, err := stmt.ExecContext(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
 	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided pk")
+		return errors.New("no row found with provided id")
 	}
 
 	return nil

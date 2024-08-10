@@ -1,55 +1,53 @@
 package main
 
-import "time"
-
 type Table_TypeTest struct {
-	ID__                uint        `json:"__ID"`
-	Column_Bool         bool        `json:"Bool"`
-	Column_Bool_Arr     []bool      `json:"Bool_Arr"`
-	Column_Date         time.Time   `json:"Date"`
-	Column_DateTime     time.Time   `json:"DateTime"`
-	Column_Date_arr     []time.Time `json:"Date_arr"`
-	Column_Datetime_Arr []time.Time `json:"Datetime_Arr"`
-	Column_Float        float64     `json:"Float"`
-	Column_Float_arr    []float64   `json:"Float_arr"`
-	Column_Int          int         `json:"Int"`
-	Column_Int_Arr      []int       `json:"Int_Arr"`
-	Column_Str_Arr      []string    `json:"Str_Arr"`
-	Column_String       string      `json:"String"`
-	Column_Time         time.Time   `json:"Time"`
-	Column_Time_Arr     []time.Time `json:"Time_Arr"`
+	ID__                CustomNullInt        `json:"__ID"`
+	Column_Bool         CustomNullBool       `json:"Bool"`
+	Column_Bool_Arr     []CustomNullBool     `json:"Bool_Arr"`
+	Column_Date         CustomNullDate       `json:"Date"`
+	Column_DateTime     CustomNullDateTime   `json:"DateTime"`
+	Column_Date_arr     []CustomNullDate     `json:"Date_arr"`
+	Column_Datetime_Arr []CustomNullDateTime `json:"Datetime_Arr"`
+	Column_Float        CustomNullFloat      `json:"Float"`
+	Column_Float_arr    []CustomNullFloat    `json:"Float_arr"`
+	Column_Int          CustomNullInt        `json:"Int"`
+	Column_Int_Arr      []CustomNullInt      `json:"Int_Arr"`
+	Column_Str_Arr      []CustomNullString   `json:"Str_Arr"`
+	Column_String       CustomNullString     `json:"String"`
+	Column_Time         CustomNullTime       `json:"Time"`
+	Column_Time_Arr     []CustomNullTime     `json:"Time_Arr"`
 }
 
 type Table_branches struct {
-	Column_Branch_Id   int      `json:"Branch_Id"`
-	Column_Branch_Name string   `json:"Branch_Name"`
-	Column_Course_Id   int      `json:"Course_Id"`
-	Column_Teachers    []string `json:"Teachers"`
+	Column_Branch_Id   CustomNullInt      `json:"Branch_Id"`
+	Column_Branch_Name CustomNullString   `json:"Branch_Name"`
+	Column_Course_Id   CustomNullInt      `json:"Course_Id"`
+	Column_Teachers    []CustomNullString `json:"Teachers"`
 }
 
 type Table_courses struct {
-	Column_Course_Id       int    `json:"Course_Id"`
-	Column_Course_Name     string `json:"Course_Name"`
-	Column_Lateral_Allowed bool   `json:"Lateral_Allowed"`
+	Column_Course_Id       CustomNullInt    `json:"Course_Id"`
+	Column_Course_Name     CustomNullString `json:"Course_Name"`
+	Column_Lateral_Allowed CustomNullBool   `json:"Lateral_Allowed"`
 }
 
 type Table_empty struct {
-	ID__         uint    `json:"__ID"`
-	Column_Col_1 int     `json:"Col_1"`
-	Column_Col_2 string  `json:"Col_2"`
-	Column_Col_3 float64 `json:"Col_3"`
+	ID__         CustomNullInt    `json:"__ID"`
+	Column_Col_1 CustomNullInt    `json:"Col_1"`
+	Column_Col_2 CustomNullString `json:"Col_2"`
+	Column_Col_3 CustomNullFloat  `json:"Col_3"`
 }
 
 type Table_students struct {
-	Column_Branch_Id      int    `json:"Branch_Id"`
-	Column_Course_Id      int    `json:"Course_Id"`
-	Column_Student_Father string `json:"Student_Father"`
-	Column_Student_Id     int    `json:"Student_Id"`
-	Column_Student_Name   string `json:"Student_Name"`
+	Column_Branch_Id      CustomNullInt    `json:"Branch_Id"`
+	Column_Course_Id      CustomNullInt    `json:"Course_Id"`
+	Column_Student_Father CustomNullString `json:"Student_Father"`
+	Column_Student_Id     CustomNullInt    `json:"Student_Id"`
+	Column_Student_Name   CustomNullString `json:"Student_Name"`
 }
 
 type Table_subjects struct {
-	Column_Branch_Id    int    `json:"Branch_Id"`
-	Column_Subject_Id   int    `json:"Subject_Id"`
-	Column_Subject_Name string `json:"Subject_Name"`
+	Column_Branch_Id    CustomNullInt    `json:"Branch_Id"`
+	Column_Subject_Id   CustomNullInt    `json:"Subject_Id"`
+	Column_Subject_Name CustomNullString `json:"Subject_Name"`
 }

@@ -85,28 +85,14 @@ func main() {
 		appPath := filepath.Join(basePath, "app")
 
 		if err := os.Mkdir(appPath, os.ModePerm); err != nil {
-			log.Fatalf("error while creating app: %v", err)
+			log.Fatalf("error while creating app directory: %v", err)
 		}
 
-		modelFilePath := filepath.Join(appPath, "models.go")
-		if err := dbSchema.writeModels(modelFilePath); err != nil {
-			log.Fatalf("error while writing models: %v", err)
+		if err := dbSchema.writeAppFiles(appPath); err != nil {
+			log.Fatalf("error while writing app files: %v", err)
 		}
 
-		dbFilePath := filepath.Join(appPath, "dbUtils.go")
-		if err := dbSchema.writeDbUtils(dbFilePath); err != nil {
-			log.Fatalf("error while DB Utils: %v", err)
-		}
-
-		httpFilePath := filepath.Join(appPath, "httpUtils.go")
-		if err := dbSchema.writeHttpUtils(httpFilePath); err != nil {
-			log.Fatalf("error while writing http utils: %v", err)
-		}
-
-		mainFilePath := filepath.Join(appPath, "main.go")
-		if err := dbSchema.writeMain(mainFilePath); err != nil {
-			log.Fatalf("error while writing main: %v", err)
-		}
+		fmt.Println("finished writing files, executing commands")
 
 		if err := executeAppCommands(appPath); err != nil {
 			log.Fatalf("error while executing commands: %v", err)

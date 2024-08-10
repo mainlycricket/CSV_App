@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
-	"time"
+	"net/url"
 )
 
 type ApiResponse struct {
@@ -33,44 +32,44 @@ func startServer() *http.Server {
 	// TypeTest routes
 	http.HandleFunc("POST /TypeTest", api_create_TypeTest)
 	http.HandleFunc("GET /TypeTest", api_getAll_TypeTest)
-	http.HandleFunc("GET /TypeTest/{id}", api_getByPk_TypeTest)
-	http.HandleFunc("PUT /TypeTest/{id}", api_update_TypeTest)
-	http.HandleFunc("DELETE /TypeTest/{id}", api_delete_TypeTest)
+	http.HandleFunc("GET /TypeTestByPK", api_getByPk_TypeTest)
+	http.HandleFunc("PUT /TypeTest", api_update_TypeTest)
+	http.HandleFunc("DELETE /TypeTest", api_delete_TypeTest)
 
 	// branches routes
 	http.HandleFunc("POST /branches", api_create_branches)
 	http.HandleFunc("GET /branches", api_getAll_branches)
-	http.HandleFunc("GET /branches/{id}", api_getByPk_branches)
-	http.HandleFunc("PUT /branches/{id}", api_update_branches)
-	http.HandleFunc("DELETE /branches/{id}", api_delete_branches)
+	http.HandleFunc("GET /branchesByPK", api_getByPk_branches)
+	http.HandleFunc("PUT /branches", api_update_branches)
+	http.HandleFunc("DELETE /branches", api_delete_branches)
 
 	// courses routes
 	http.HandleFunc("POST /courses", api_create_courses)
 	http.HandleFunc("GET /courses", api_getAll_courses)
-	http.HandleFunc("GET /courses/{id}", api_getByPk_courses)
-	http.HandleFunc("PUT /courses/{id}", api_update_courses)
-	http.HandleFunc("DELETE /courses/{id}", api_delete_courses)
+	http.HandleFunc("GET /coursesByPK", api_getByPk_courses)
+	http.HandleFunc("PUT /courses", api_update_courses)
+	http.HandleFunc("DELETE /courses", api_delete_courses)
 
 	// empty routes
 	http.HandleFunc("POST /empty", api_create_empty)
 	http.HandleFunc("GET /empty", api_getAll_empty)
-	http.HandleFunc("GET /empty/{id}", api_getByPk_empty)
-	http.HandleFunc("PUT /empty/{id}", api_update_empty)
-	http.HandleFunc("DELETE /empty/{id}", api_delete_empty)
+	http.HandleFunc("GET /emptyByPK", api_getByPk_empty)
+	http.HandleFunc("PUT /empty", api_update_empty)
+	http.HandleFunc("DELETE /empty", api_delete_empty)
 
 	// students routes
 	http.HandleFunc("POST /students", api_create_students)
 	http.HandleFunc("GET /students", api_getAll_students)
-	http.HandleFunc("GET /students/{id}", api_getByPk_students)
-	http.HandleFunc("PUT /students/{id}", api_update_students)
-	http.HandleFunc("DELETE /students/{id}", api_delete_students)
+	http.HandleFunc("GET /studentsByPK", api_getByPk_students)
+	http.HandleFunc("PUT /students", api_update_students)
+	http.HandleFunc("DELETE /students", api_delete_students)
 
 	// subjects routes
 	http.HandleFunc("POST /subjects", api_create_subjects)
 	http.HandleFunc("GET /subjects", api_getAll_subjects)
-	http.HandleFunc("GET /subjects/{id}", api_getByPk_subjects)
-	http.HandleFunc("PUT /subjects/{id}", api_update_subjects)
-	http.HandleFunc("DELETE /subjects/{id}", api_delete_subjects)
+	http.HandleFunc("GET /subjectsByPK", api_getByPk_subjects)
+	http.HandleFunc("PUT /subjects", api_update_subjects)
+	http.HandleFunc("DELETE /subjects", api_delete_subjects)
 
 	s := &http.Server{
 		Addr: ":8080",
@@ -94,7 +93,9 @@ func api_create_TypeTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_insert_TypeTest(&item); err != nil {
+	ctx := r.Context()
+
+	if err := db_insert_TypeTest(ctx, &item); err != nil {
 		message := fmt.Sprintf("error while creating: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -109,7 +110,9 @@ func api_create_TypeTest(w http.ResponseWriter, r *http.Request) {
 func api_getAll_TypeTest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data, err := db_readAll_TypeTest()
+	ctx := r.Context()
+
+	data, err := db_readAll_TypeTest(ctx)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -125,16 +128,20 @@ func api_getAll_TypeTest(w http.ResponseWriter, r *http.Request) {
 func api_getByPk_TypeTest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast id", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	data, err := db_read_TypeTest_ByPK(pk)
+	id := values.Get("id")
+	ctx := r.Context()
+
+	data, err := db_read_TypeTest_ByPK(ctx, id)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading data: %v", err)
@@ -150,14 +157,18 @@ func api_getByPk_TypeTest(w http.ResponseWriter, r *http.Request) {
 func api_update_TypeTest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	id := values.Get("id")
+	ctx := r.Context()
 
 	var item Table_TypeTest
 
@@ -169,7 +180,7 @@ func api_update_TypeTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_update_TypeTest(&item, pk); err != nil {
+	if err := db_update_TypeTest(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -183,16 +194,20 @@ func api_update_TypeTest(w http.ResponseWriter, r *http.Request) {
 func api_delete_TypeTest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type caste", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	if err := db_delete_TypeTest(pk); err != nil {
+	id := values.Get("id")
+	ctx := r.Context()
+
+	if err := db_delete_TypeTest(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -218,7 +233,9 @@ func api_create_branches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_insert_branches(&item); err != nil {
+	ctx := r.Context()
+
+	if err := db_insert_branches(ctx, &item); err != nil {
 		message := fmt.Sprintf("error while creating: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -233,7 +250,9 @@ func api_create_branches(w http.ResponseWriter, r *http.Request) {
 func api_getAll_branches(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data, err := db_readAll_branches()
+	ctx := r.Context()
+
+	data, err := db_readAll_branches(ctx)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -249,16 +268,20 @@ func api_getAll_branches(w http.ResponseWriter, r *http.Request) {
 func api_getByPk_branches(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast id", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	data, err := db_read_branches_ByPK(pk)
+	id := values.Get("id")
+	ctx := r.Context()
+
+	data, err := db_read_branches_ByPK(ctx, id)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading data: %v", err)
@@ -274,14 +297,18 @@ func api_getByPk_branches(w http.ResponseWriter, r *http.Request) {
 func api_update_branches(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	id := values.Get("id")
+	ctx := r.Context()
 
 	var item Table_branches
 
@@ -293,7 +320,7 @@ func api_update_branches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_update_branches(&item, pk); err != nil {
+	if err := db_update_branches(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -307,16 +334,20 @@ func api_update_branches(w http.ResponseWriter, r *http.Request) {
 func api_delete_branches(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type caste", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	if err := db_delete_branches(pk); err != nil {
+	id := values.Get("id")
+	ctx := r.Context()
+
+	if err := db_delete_branches(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -342,7 +373,9 @@ func api_create_courses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_insert_courses(&item); err != nil {
+	ctx := r.Context()
+
+	if err := db_insert_courses(ctx, &item); err != nil {
 		message := fmt.Sprintf("error while creating: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -357,7 +390,9 @@ func api_create_courses(w http.ResponseWriter, r *http.Request) {
 func api_getAll_courses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data, err := db_readAll_courses()
+	ctx := r.Context()
+
+	data, err := db_readAll_courses(ctx)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -373,16 +408,20 @@ func api_getAll_courses(w http.ResponseWriter, r *http.Request) {
 func api_getByPk_courses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast id", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	data, err := db_read_courses_ByPK(pk)
+	id := values.Get("id")
+	ctx := r.Context()
+
+	data, err := db_read_courses_ByPK(ctx, id)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading data: %v", err)
@@ -398,14 +437,18 @@ func api_getByPk_courses(w http.ResponseWriter, r *http.Request) {
 func api_update_courses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	id := values.Get("id")
+	ctx := r.Context()
 
 	var item Table_courses
 
@@ -417,7 +460,7 @@ func api_update_courses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_update_courses(&item, pk); err != nil {
+	if err := db_update_courses(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -431,16 +474,20 @@ func api_update_courses(w http.ResponseWriter, r *http.Request) {
 func api_delete_courses(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type caste", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	if err := db_delete_courses(pk); err != nil {
+	id := values.Get("id")
+	ctx := r.Context()
+
+	if err := db_delete_courses(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -466,7 +513,9 @@ func api_create_empty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_insert_empty(&item); err != nil {
+	ctx := r.Context()
+
+	if err := db_insert_empty(ctx, &item); err != nil {
 		message := fmt.Sprintf("error while creating: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -481,7 +530,9 @@ func api_create_empty(w http.ResponseWriter, r *http.Request) {
 func api_getAll_empty(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data, err := db_readAll_empty()
+	ctx := r.Context()
+
+	data, err := db_readAll_empty(ctx)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -497,16 +548,20 @@ func api_getAll_empty(w http.ResponseWriter, r *http.Request) {
 func api_getByPk_empty(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast id", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	data, err := db_read_empty_ByPK(pk)
+	id := values.Get("id")
+	ctx := r.Context()
+
+	data, err := db_read_empty_ByPK(ctx, id)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading data: %v", err)
@@ -522,14 +577,18 @@ func api_getByPk_empty(w http.ResponseWriter, r *http.Request) {
 func api_update_empty(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	id := values.Get("id")
+	ctx := r.Context()
 
 	var item Table_empty
 
@@ -541,7 +600,7 @@ func api_update_empty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_update_empty(&item, pk); err != nil {
+	if err := db_update_empty(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -555,16 +614,20 @@ func api_update_empty(w http.ResponseWriter, r *http.Request) {
 func api_delete_empty(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type caste", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	if err := db_delete_empty(pk); err != nil {
+	id := values.Get("id")
+	ctx := r.Context()
+
+	if err := db_delete_empty(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -590,7 +653,9 @@ func api_create_students(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_insert_students(&item); err != nil {
+	ctx := r.Context()
+
+	if err := db_insert_students(ctx, &item); err != nil {
 		message := fmt.Sprintf("error while creating: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -605,7 +670,9 @@ func api_create_students(w http.ResponseWriter, r *http.Request) {
 func api_getAll_students(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data, err := db_readAll_students()
+	ctx := r.Context()
+
+	data, err := db_readAll_students(ctx)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -621,16 +688,20 @@ func api_getAll_students(w http.ResponseWriter, r *http.Request) {
 func api_getByPk_students(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast id", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	data, err := db_read_students_ByPK(pk)
+	id := values.Get("id")
+	ctx := r.Context()
+
+	data, err := db_read_students_ByPK(ctx, id)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading data: %v", err)
@@ -646,14 +717,18 @@ func api_getByPk_students(w http.ResponseWriter, r *http.Request) {
 func api_update_students(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	id := values.Get("id")
+	ctx := r.Context()
 
 	var item Table_students
 
@@ -665,7 +740,7 @@ func api_update_students(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_update_students(&item, pk); err != nil {
+	if err := db_update_students(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -679,16 +754,20 @@ func api_update_students(w http.ResponseWriter, r *http.Request) {
 func api_delete_students(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type caste", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	if err := db_delete_students(pk); err != nil {
+	id := values.Get("id")
+	ctx := r.Context()
+
+	if err := db_delete_students(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -714,7 +793,9 @@ func api_create_subjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_insert_subjects(&item); err != nil {
+	ctx := r.Context()
+
+	if err := db_insert_subjects(ctx, &item); err != nil {
 		message := fmt.Sprintf("error while creating: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -729,7 +810,9 @@ func api_create_subjects(w http.ResponseWriter, r *http.Request) {
 func api_getAll_subjects(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data, err := db_readAll_subjects()
+	ctx := r.Context()
+
+	data, err := db_readAll_subjects(ctx)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -745,16 +828,20 @@ func api_getAll_subjects(w http.ResponseWriter, r *http.Request) {
 func api_getByPk_subjects(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast id", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	data, err := db_read_subjects_ByPK(pk)
+	id := values.Get("id")
+	ctx := r.Context()
+
+	data, err := db_read_subjects_ByPK(ctx, id)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading data: %v", err)
@@ -770,14 +857,18 @@ func api_getByPk_subjects(w http.ResponseWriter, r *http.Request) {
 func api_update_subjects(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type cast", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	id := values.Get("id")
+	ctx := r.Context()
 
 	var item Table_subjects
 
@@ -789,7 +880,7 @@ func api_update_subjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db_update_subjects(&item, pk); err != nil {
+	if err := db_update_subjects(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
@@ -803,16 +894,20 @@ func api_update_subjects(w http.ResponseWriter, r *http.Request) {
 func api_delete_subjects(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	id := r.PathValue("id")
-	pk, err := strconv.Atoi(id)
+	values, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "failed to type caste", nil))
+		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
 
-	if err := db_delete_subjects(pk); err != nil {
+	id := values.Get("id")
+	ctx := r.Context()
+
+	if err := db_delete_subjects(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)

@@ -92,7 +92,7 @@ func main() {
 			log.Fatalf("error while writing app files: %v", err)
 		}
 
-		fmt.Println("finished writing files, executing commands")
+		fmt.Println("finished writing app files")
 
 		if err := executeAppCommands(appPath); err != nil {
 			log.Fatalf("error while executing commands: %v", err)

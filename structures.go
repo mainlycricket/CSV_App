@@ -1,7 +1,6 @@
 package main
 
 type DB struct {
-	DB_Name  string           `json:"dbName"`
 	BasePath string           `json:"basePath"`
 	Tables   map[string]Table `json:"tables"` // key: tableName
 }

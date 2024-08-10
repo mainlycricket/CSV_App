@@ -1,7 +1,9 @@
 ### About
-This project generates a single `.sql` file (PostgreSQL database) for the provided `.csv` files in `./data` directory.
 
-My more ambitious aim is to automatically create a CRUP app for these tables.
+- This project generates a single `.sql` file (PostgreSQL database) for the provided `.csv` files in `./data` directory.
+- It also generates a basic standalone CRUD API for these tables.
+- I aim to add more features to this application as well as the generated application.
+- Please read this doc thoroughly to understand how it works.
 
 #### Step 1: Schema Generation
 
@@ -10,12 +12,16 @@ go build . && ./CSV_App schema
 ```
 
 - This generates initial schema in `data/schema.json` by analyzing the CSV data
-- Always successful unless an error is encountered while parsing `.csv` files
+- Always successful unless an error is encountered while parsing `.csv` files or a duplicate table or duplicate column or empty column name is found
 - No data validation is performed
-- Schema constraints should be reviewed
+- Constraints in `data/schema.json` should be reviewed
 - Special constraints like `Min`, `Max`, `Enums` & `Default` are always required to be added manually
-- DB Name should be also set manually
-- Table Names & Column Names should NOT be changed
+- Table Names & Column Names should NOT be changed as they are **_sanitized_**
+
+  > [!NOTE]
+  > Leading & Trailing spaces are trimmed in sanitization
+  > Any sequence of non-alphanumeric character is replaced by a single underscore
+  > E.g. ` !'Table Name'!` is transformed into `_Table_Name_`
 
 #### Step 2: SQL File Generation
 
@@ -54,30 +60,13 @@ go build . && ./CSV_App app
 - datetime (with timezone)
 - array of these primitive types
 
+> [!NOTE]
+> Checkout [TypeTest.csv](./data/TypeTest.csv) to understand data formats in CSV files.
+> If a column doesn't have any value, it's datatype is marked as empty in `schema.json` and it should be set manually.
 
 ### Column Constraints
 
-#### Primary Key
-
-- Composite Primary Keys are not allowed
-- If no primary key is provided, a column named `__ID` is added by default
-
-#### Min & Max
-
-- Should always be mentioned in strings
-- Should be empty for boolean values or if they aren't required
-
-- Data is validated by value for integer, float, date, time, datetime
-- E.g. `Min:"3"` and `Max:"10"` for `integer` mean `3 >= value <= 10`
-
-- Data is validated by length for strings (should be a +ve integer)
-- E.g. `Min:"3"` and `Max:"10"` for `text` mean `3 >= length(value) <= 10`
-
-- For array: "array_length,individual_value_constraint"
-- E.g. `Min: "2,3"` and `Max: "5,10"` for `integer[]` implies `2 >= len(arr) <= 5` and `3 >= each_element <= 10`
-- E.g. `Min: "2,3"` and `Max: "4,10"` for `text[]` implies `2 >= len(arr) <= 4` and `3 >= length(each_element) <= 10`
-
-#### Constraint Codes:
+#### Special Constraint Codes:
 
 | Code | Constraint  |
 | ---- | ----------- |
@@ -95,6 +84,12 @@ go build . && ./CSV_App app
 - Extra unwanted characters in constraints are ignored
 - Eg: `P:columnName`, `U:columnName`, `NU:columnName`, `FN:columnName`, `FNU:columnName`
 
+#### Primary Key
+
+- Composite Primary Keys are not allowed
+- If no primary key is provided, a column named `__ID` is added by default in SQL & App but `schema.json` isn't modified
+- All datatypes are allowed to be primary key
+
 #### Foreign Key Mapping
 
 If a column is marked as a foreign key, the referenced column is mapped with the following idea:
@@ -102,3 +97,75 @@ If a column is marked as a foreign key, the referenced column is mapped with the
 - if any other table has a column with the same name and datatype, it is marked as referenced column
 - if multiple such columns exist, any one is choosen
 - if no match is found, the `ForeignTable` & `ForeignColumn` fields are left with value `__`
+
+#### Min & Max
+
+- Should always be mentioned in strings
+- Should be empty for boolean values or if they aren't required
+
+- Data is validated by value for integer, float, date, time, datetime
+- E.g. `Min:"3"` and `Max:"10"` for `integer` mean `3 >= value <= 10`
+
+- Data is validated by length for strings (should be a +ve integer)
+- E.g. `Min:"3"` and `Max:"10"` for `text` mean `3 >= length(value) <= 10`
+
+- For array: "array_length,individual_value_constraint"
+- E.g. `Min: "2,3"` and `Max: "5,10"` for `integer[]` implies `2 >= len(arr) <= 5` and `3 >= each_element <= 10`
+- E.g. `Min: "2,3"` and `Max: "4,10"` for `text[]` implies `2 >= len(arr) <= 4` and `3 >= length(each_element) <= 10`
+
+#### Enums
+
+- Enums should be an array that specifies the allowed values for the column
+- Each indiviual value in Enums should satisfy the individual `Min` and `Max` constraints
+- For array columns, each values_arr[i] should be present in enums array
+
+#### Default
+
+- Default value should satisy the min, max and enums constraint if they're present
+- Primary Key & Unique columns shouldn't have a default value
+
+### CRUD App
+
+- It is a standalone app, it runs on its own.
+
+- Each API response has following structure in JSON format:
+
+  | Field   | Description                                               |
+  | ------- | --------------------------------------------------------- |
+  | success | boolean flag                                              |
+  | message | string message                                            |
+  | data    | array for GET all, object for Single GET, null for others |
+
+- For each table, there are five API routes:
+
+  - `POST /tableName` - insert a single row
+  - `GET /tableName` - get all rows
+  - `GET /tableNameByPK` - get single row by primary key
+  - `PUT /tableName` - update single row by primary key
+  - `DELETE /tableName` - delete single row by primary key
+
+- In POST & UPDATE request, the data should be in JSON format
+
+- The key should have the same name as the column name in the CSV file
+
+- If the schema didn't have any primary key column:
+
+  - it is ignored in POST request, it will be automatically generated by PostgreSQL
+  - it is required in UPDATE request even if the `__ID` is not changed
+
+  ```json
+  {
+    "Student_Id": 8,
+    "Student_Name": "Vinay",
+    "Student_Father": "Father",
+    "Course_Id": 2,
+    "Branch_Id": 1
+  }
+  ```
+
+- In single get, put and delete routes, the URL should specifiy the primary key value for the row with `id` as key, e.g: `localhost:8080/studentsByPK?id=1`
+
+  > [!NOTE]
+  > The key should always be `id` regardless of the primary key column name in the table.
+  > The value should be in the same format as they are in CSV files.
+  > If an array column in Primary Key, it should be enclosed in curly braces {}

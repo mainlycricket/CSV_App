@@ -155,6 +155,13 @@ func createTableSchema(filePath string, tableResponseChannel chan<- tableRespons
 		column := Column{}
 
 		columnName := column.setTableConstraints(&table, header)
+
+		if len(columnName) == 0 {
+			message := fmt.Sprintf("empty column in %s table", fileName)
+			mainError = errors.New(message)
+			return
+		}
+
 		column.ColumnName = columnName
 
 		if _, ok := table.Columns[columnName]; ok {
@@ -418,12 +425,7 @@ func readSchema() (DB, error) {
 }
 
 func (dbSchema *DB) validateSchema() error {
-	if len(dbSchema.DB_Name) == 0 {
-		return errors.New("dbName is requried in schema")
-	}
-
 	basePath := dbSchema.BasePath
-	dbSchema.DB_Name = sanitize_db_label(dbSchema.DB_Name)
 
 	for tableName, table := range dbSchema.Tables {
 		if tableName != sanitize_db_label(tableName) {
@@ -440,7 +442,12 @@ func (dbSchema *DB) validateSchema() error {
 		primaryKeyFlag := false
 
 		for columnName, column := range table.Columns {
-			if tableName != sanitize_db_label(tableName) {
+			if len(columnName) == 0 {
+				errorMessage := fmt.Sprintf("empty column found in table %s", tableName)
+				return errors.New(errorMessage)
+			}
+
+			if columnName != sanitize_db_label(columnName) {
 				errorMessage := fmt.Sprintf("column %s in table %s isn't sanitized", columnName, tableName)
 				return errors.New(errorMessage)
 			}

@@ -1,5 +1,4 @@
 {
-  "dbName": "Test",
   "basePath": "/home/tushar/Desktop/go_tutorial/projects/CSV_App/data",
   "tables": {
     "TypeTest": {

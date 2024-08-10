@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -10,14 +12,31 @@ import (
 )
 
 func (dbSchema *DB) writeAppFiles(appPath string) error {
+	basePath, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	basePath = filepath.Join(basePath, "templates")
+
 	errorChannel := make(chan error, 5)
 
-	go writeEnvFile(filepath.Join(appPath, ".env"), errorChannel)
-	go writeNullTypes(filepath.Join(appPath, "nullTypes.go"), errorChannel)
-	go dbSchema.writeModels(filepath.Join(appPath, "models.go"), errorChannel)
-	go dbSchema.writeDbUtils(filepath.Join(appPath, "dbUtils.go"), errorChannel)
-	go dbSchema.writeHttpUtils(filepath.Join(appPath, "httpUtils.go"), errorChannel)
-	go dbSchema.writeMain(filepath.Join(appPath, "main.go"), errorChannel)
+	envApp, envTmpl := filepath.Join(appPath, ".env"), filepath.Join(basePath, "env.tmpl")
+	go writeEnvFile(envApp, envTmpl, errorChannel)
+
+	nullApp, nullTmpl := filepath.Join(appPath, "nullTypes.go"), filepath.Join(basePath, "nullTypes.tmpl")
+	go writeNullTypes(nullApp, nullTmpl, errorChannel)
+
+	modelApp, modelTmpl := filepath.Join(appPath, "models.go"), filepath.Join(basePath, "model.tmpl")
+	go dbSchema.writeModels(modelApp, modelTmpl, errorChannel)
+
+	dbApp, dbTmpl := filepath.Join(appPath, "dbUtils.go"), filepath.Join(basePath, "db.tmpl")
+	go dbSchema.writeDbUtils(dbApp, dbTmpl, errorChannel)
+
+	httpApp, httpTmpl := filepath.Join(appPath, "httpUtils.go"), filepath.Join(basePath, "http.tmpl")
+	go dbSchema.writeHttpUtils(httpApp, httpTmpl, errorChannel)
+
+	mainApp, mainTmpl := filepath.Join(appPath, "main.go"), filepath.Join(basePath, "main.tmpl")
+	go dbSchema.writeMain(mainApp, mainTmpl, errorChannel)
 
 	count := 0
 	for err := range errorChannel {
@@ -33,24 +52,18 @@ func (dbSchema *DB) writeAppFiles(appPath string) error {
 	return nil
 }
 
-func writeEnvFile(filePath string, channel chan<- error) {
+func writeEnvFile(filePath, templatePath string, channel chan<- error) {
 	var mainError error
 
 	defer func() {
+		if mainError != nil {
+			errorMessage := fmt.Sprintf("error while writing .env file: %v", mainError)
+			mainError = errors.New(errorMessage)
+		}
 		channel <- mainError
 	}()
 
-	basePath, err := os.Getwd()
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	templateFileName := "env.tmpl"
-
-	templatePath := filepath.Join(basePath, "templates", templateFileName)
-
-	template, err := template.New(templateFileName).ParseFiles(templatePath)
+	template, err := template.New("env.tmpl").ParseFiles(templatePath)
 	if err != nil {
 		mainError = err
 		return
@@ -70,24 +83,18 @@ func writeEnvFile(filePath string, channel chan<- error) {
 	}
 }
 
-func writeNullTypes(filePath string, channel chan<- error) {
+func writeNullTypes(filePath, templatePath string, channel chan<- error) {
 	var mainError error
 
 	defer func() {
+		if mainError != nil {
+			errorMessage := fmt.Sprintf("error while writing nullTypes.go file: %v", mainError)
+			mainError = errors.New(errorMessage)
+		}
 		channel <- mainError
 	}()
 
-	basePath, err := os.Getwd()
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	templateFileName := "nullTypes.tmpl"
-
-	templatePath := filepath.Join(basePath, "templates", templateFileName)
-
-	template, err := template.New(templateFileName).ParseFiles(templatePath)
+	template, err := template.New("nullTypes.tmpl").ParseFiles(templatePath)
 	if err != nil {
 		mainError = err
 		return
@@ -107,26 +114,20 @@ func writeNullTypes(filePath string, channel chan<- error) {
 	}
 }
 
-func (dbSchema *DB) writeModels(filePath string, channel chan<- error) {
+func (dbSchema *DB) writeModels(filePath, templatePath string, channel chan<- error) {
 	var mainError error
 
 	defer func() {
+		if mainError != nil {
+			errorMessage := fmt.Sprintf("error while writing models.go file: %v", mainError)
+			mainError = errors.New(errorMessage)
+		}
 		channel <- mainError
 	}()
-
-	basePath, err := os.Getwd()
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	templateFileName := "model.tmpl"
 
 	funcs := template.FuncMap{"getDbType": getDbType}
 
-	templatePath := filepath.Join(basePath, "templates", templateFileName)
-
-	template, err := template.New(templateFileName).Funcs(funcs).ParseFiles(templatePath)
+	template, err := template.New("model.tmpl").Funcs(funcs).ParseFiles(templatePath)
 	if err != nil {
 		mainError = err
 		return
@@ -146,20 +147,16 @@ func (dbSchema *DB) writeModels(filePath string, channel chan<- error) {
 	}
 }
 
-func (dbSchema *DB) writeDbUtils(filePath string, channel chan<- error) {
+func (dbSchema *DB) writeDbUtils(filePath, templatePath string, channel chan<- error) {
 	var mainError error
 
 	defer func() {
+		if mainError != nil {
+			errorMessage := fmt.Sprintf("error while writing dbUtils.go file: %v", mainError)
+			mainError = errors.New(errorMessage)
+		}
 		channel <- mainError
 	}()
-
-	basePath, err := os.Getwd()
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	templateFileName := "db.tmpl"
 
 	funcs := template.FuncMap{
 		"HasSuffix": strings.HasSuffix,
@@ -167,9 +164,7 @@ func (dbSchema *DB) writeDbUtils(filePath string, channel chan<- error) {
 		"decrease":  decrease,
 	}
 
-	templatePath := filepath.Join(basePath, "templates", templateFileName)
-
-	template, err := template.New(templateFileName).Funcs(funcs).ParseFiles(templatePath)
+	template, err := template.New("db.tmpl").Funcs(funcs).ParseFiles(templatePath)
 	if err != nil {
 		mainError = err
 		return
@@ -189,24 +184,18 @@ func (dbSchema *DB) writeDbUtils(filePath string, channel chan<- error) {
 	}
 }
 
-func (dbSchema *DB) writeHttpUtils(filePath string, channel chan<- error) {
+func (dbSchema *DB) writeHttpUtils(filePath, templatePath string, channel chan<- error) {
 	var mainError error
 
 	defer func() {
+		if mainError != nil {
+			errorMessage := fmt.Sprintf("error while writing httpUtils.go file: %v", mainError)
+			mainError = errors.New(errorMessage)
+		}
 		channel <- mainError
 	}()
 
-	basePath, err := os.Getwd()
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	templateFileName := "http.tmpl"
-
-	templatePath := filepath.Join(basePath, "templates", templateFileName)
-
-	template, err := template.New(templateFileName).ParseFiles(templatePath)
+	template, err := template.New("http.tmpl").ParseFiles(templatePath)
 	if err != nil {
 		mainError = err
 		return
@@ -226,24 +215,18 @@ func (dbSchema *DB) writeHttpUtils(filePath string, channel chan<- error) {
 	}
 }
 
-func (dbSchema *DB) writeMain(filePath string, channel chan<- error) {
+func (dbSchema *DB) writeMain(filePath, templatePath string, channel chan<- error) {
 	var mainError error
 
 	defer func() {
+		if mainError != nil {
+			errorMessage := fmt.Sprintf("error while writing main.go file: %v", mainError)
+			mainError = errors.New(errorMessage)
+		}
 		channel <- mainError
 	}()
 
-	basePath, err := os.Getwd()
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	templateFileName := "main.tmpl"
-
-	templatePath := filepath.Join(basePath, "templates", templateFileName)
-
-	template, err := template.New(templateFileName).ParseFiles(templatePath)
+	template, err := template.New("main.tmpl").ParseFiles(templatePath)
 	if err != nil {
 		mainError = err
 		return
@@ -268,24 +251,20 @@ func executeAppCommands(appPath string) error {
 		log.Fatalf("error while changing directory: %v", err)
 	}
 
-	fmtCmd := exec.Command("go", "fmt")
-	if err := fmtCmd.Run(); err != nil {
-		return err
+	commands := []string{
+		"go fmt",
+		"go mod init app.com/app",
+		"go get github.com/lib/pq",
+		"go mod tidy",
 	}
 
-	initCommand := exec.Command("go", "mod", "init", "app.com/app")
-	if err := initCommand.Run(); err != nil {
-		return err
-	}
-
-	libCmd := exec.Command("go", "get", "github.com/lib/pq")
-	if err := libCmd.Run(); err != nil {
-		return err
-	}
-
-	tidyCmd := exec.Command("go", "mod", "tidy")
-	if err := tidyCmd.Run(); err != nil {
-		return err
+	for _, command := range commands {
+		arr := strings.Split(command, " ")
+		cmd := exec.Command(arr[0], arr[1:]...)
+		if err := cmd.Run(); err != nil {
+			errorMessage := fmt.Sprintf("error while executing %s command: %v", command, err)
+			return errors.New(errorMessage)
+		}
 	}
 
 	return nil

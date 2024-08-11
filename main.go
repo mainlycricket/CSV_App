@@ -10,7 +10,7 @@ import (
 
 func main() {
 	args := os.Args
-	argsMessage := "Invalid args! Provide:\n'schema' to generate schema.json or \n'sql' to generate db.sql"
+	argsMessage := "Invalid args! Provide:\n'schema' to generate schema.json or \n'sql' to generate db.sql or \n'app' to generate app"
 
 	if len(args) != 2 {
 		log.Fatalf(argsMessage)

@@ -31,13 +31,6 @@ type Table_courses struct {
 	Column_Lateral_Allowed CustomNullBool   `json:"Lateral_Allowed"`
 }
 
-type Table_empty struct {
-	ID__         CustomNullInt    `json:"__ID"`
-	Column_Col_1 CustomNullInt    `json:"Col_1"`
-	Column_Col_2 CustomNullString `json:"Col_2"`
-	Column_Col_3 CustomNullFloat  `json:"Col_3"`
-}
-
 type Table_students struct {
 	Column_Branch_Id      CustomNullInt    `json:"Branch_Id"`
 	Column_Course_Id      CustomNullInt    `json:"Course_Id"`

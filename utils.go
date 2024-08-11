@@ -173,6 +173,7 @@ func (column *Column) setMinMaxConstraint() error {
 	return nil
 }
 
+// Enums are validated against datatype, Min, Max constraints.
 // Individual elements are validated for array types
 func (column *Column) validateEnums() error {
 	datatype := strings.TrimSuffix(column.DataType, "[]")
@@ -196,6 +197,7 @@ func (column *Column) validateEnums() error {
 	return nil
 }
 
+// Returns true is Default value is nil or it satisfies the Min, Max & Enums constraints
 func (column *Column) validateDefaultValue() error {
 	if column.Default == nil {
 		return nil
@@ -263,6 +265,9 @@ func validateValueByType(value any, datatype string) (any, bool) {
 	return parsed, ok
 }
 
+// check if the given value (including arrays) satisfies all the constraints
+// if insert flag is true, NOT NULL & Unique constraints are also validated
+// also returns the interface value of the provided value
 func (column *Column) validateValueByConstraints(value any, insert bool) (any, error) {
 	if insert {
 		str := strings.TrimSpace(fmt.Sprintf("%v", value))
@@ -329,7 +334,8 @@ func (column *Column) validateValueByConstraints(value any, insert bool) (any, e
 	return interfaceVal, nil
 }
 
-// returns if
+// receives string or []any array and checks the array min & max length constraints
+// also typecastes the array value into an array interface
 func (column *Column) validateValArrLen(value any) ([]any, error) {
 	text, ok := value.(string)
 	if ok {
@@ -362,7 +368,7 @@ func (column *Column) validateValArrLen(value any) ([]any, error) {
 	return interfaceArr, nil
 }
 
-// single value
+// checks if the provided value (non-array) satisfies the min, max constraints
 func (column *Column) validateValueByMinMax(value any) error {
 	datatype := strings.TrimSuffix(column.DataType, "[]")
 
@@ -383,7 +389,7 @@ func (column *Column) validateValueByMinMax(value any) error {
 	return nil
 }
 
-// single value
+// checks if the provided value (non-array) is present in column enums
 func (column *Column) validateValueByEnum(value any) error {
 	if len(column.enumMap) == 0 {
 		return nil
@@ -399,9 +405,10 @@ func (column *Column) validateValueByEnum(value any) error {
 }
 
 /*
-Doesn't convert value, just assertion, 1 if a > b, -1 if a < b; 0 otherwise.
+returns 1 if a > b, -1 if a < b and 0 otherwise, doesn't convert values before conversion
 false bool indicates failure.
 strings are compared by length.
+not usable for array or boolean datatypes
 */
 func compareTypeValues(a, b any, datatype string) (int, bool) {
 	switch datatype {
@@ -497,10 +504,11 @@ func compareTypeValues(a, b any, datatype string) (int, bool) {
 			return 0, false
 		}
 
+		// more time passed indicates older datetime (smaller datetime)
 		if time.Since(parsedA) > time.Since(parsedB) {
-			return 1, true
-		} else if time.Since(parsedA) < time.Since(parsedB) {
 			return -1, true
+		} else if time.Since(parsedA) < time.Since(parsedB) {
+			return 1, true
 		} else {
 			return 0, true
 		}
@@ -509,7 +517,7 @@ func compareTypeValues(a, b any, datatype string) (int, bool) {
 	return 0, false
 }
 
-// For Normal Variables
+// SQL Check Constraints templating for non-array variables
 func templateCheckConstraints(column Column, columnName string) string {
 	args := []string{} // Min, Max, Enum
 
@@ -535,6 +543,7 @@ func templateCheckConstraints(column Column, columnName string) string {
 	return fmt.Sprintf(" CHECK ( %v )", strings.Join(args, " AND "))
 }
 
+// get corresponding SQL value for all datatypes including array ones
 func templateValue(value any, datatype string) string {
 	if value == nil {
 		return "NULL"
@@ -586,6 +595,7 @@ func templateValue(value any, datatype string) string {
 	return "array[" + strings.Join(values, ", ") + "]::" + datatype + "[]"
 }
 
+// used in SQL trigger generation
 func getArrayValidatorArgs(column Column) string {
 	if !strings.HasSuffix(column.DataType, "[]") || (column.minArrLen == 0 &&
 		column.maxArrLen == 0 &&
@@ -595,6 +605,7 @@ func getArrayValidatorArgs(column Column) string {
 		return ""
 	}
 
+	// NOT NULL, Min Arr Len, Max Arr Len, Min Individual, Max Individual, Enums
 	res := []string{"false", "NULL", "NULL", "NULL", "NULL", "NULL"}
 	if column.NotNull {
 		res[0] = "true"
@@ -640,6 +651,7 @@ func sanitize_db_label(text string) string {
 	return string(sanitized)
 }
 
+// used in schema validation
 func checkCSVExist(filePath, tableName string) error {
 	fileName := filepath.Base(filePath)
 
@@ -658,6 +670,7 @@ func checkCSVExist(filePath, tableName string) error {
 	return nil
 }
 
+// creates a file and writes the content of provided buffers one after another
 func writeFile(filePath string, buffers ...*bytes.Buffer) error {
 	fp, err := os.Create(filePath)
 	if err != nil {

@@ -46,6 +46,10 @@ func generateInititalSchema() error {
 		fileName := file.Name()
 		tableName := sanitize_db_label(strings.TrimSuffix(fileName, ".csv"))
 
+		if len(tableName) == 0 {
+			return errors.New("an unnamed csv file is found")
+		}
+
 		if _, ok := csvFiles[tableName]; ok {
 			message := fmt.Sprintf("table %s already exists", tableName)
 			return errors.New(message)

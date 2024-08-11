@@ -29,13 +29,6 @@ CREATE TABLE "courses" (
 	 "Course_Name" text NOT NULL UNIQUE,
 	 "Lateral_Allowed" boolean);
 
--- CREATE TABLE empty
-CREATE TABLE "empty" (
-	 "__ID" SERIAL PRIMARY KEY, 
-	 "Col_1" integer,
-	 "Col_2" text,
-	 "Col_3" real);
-
 -- CREATE TABLE students
 CREATE TABLE "students" (
 	 "Branch_Id" integer NOT NULL,
@@ -50,20 +43,12 @@ CREATE TABLE "subjects" (
 	 "Subject_Id" integer PRIMARY KEY,
 	 "Subject_Name" text NOT NULL);
 
--- DATA INSERTION "subjects"
-INSERT INTO "subjects" ("Subject_Id", "Subject_Name", "Branch_Id")
+-- DATA INSERTION "branches"
+INSERT INTO "branches" ("Branch_Id", "Branch_Name", "Course_Id", "Teachers")
 VALUES
-(1, 'DS', 1),
-(2, 'COA', 1),
-(3, 'WT', 2),
-(4, 'Java', 2);
-
-
--- DATA INSERTION "courses"
-INSERT INTO "courses" ("Course_Id", "Course_Name", "Lateral_Allowed")
-VALUES
-(1, 'B. Tech.', true),
-(2, 'M. Tech.', false);
+(1, 'Computer Science', 1, array['HA', 'PC']::text[]),
+(2, 'Information Technology', 1, array['LD', 'RK']::text[]),
+(3, 'Civil Engineering', 1, NULL);
 
 -- DATA INSERTION "students"
 INSERT INTO "students" ("Student_Id", "Student_Name", "Student_Father", "Course_Id", "Branch_Id")
@@ -73,12 +58,19 @@ VALUES
 (3, 'Saurabh', 'Jagganath', 1, 2),
 (4, 'Harsh', 'Ramesh', 1, 2);
 
--- DATA INSERTION "branches"
-INSERT INTO "branches" ("Branch_Id", "Branch_Name", "Course_Id", "Teachers")
+-- DATA INSERTION "subjects"
+INSERT INTO "subjects" ("Subject_Id", "Subject_Name", "Branch_Id")
 VALUES
-(1, 'Computer Science', 1, array['HA', 'PC']::text[]),
-(2, 'Information Technology', 1, array['LD', 'RK']::text[]),
-(3, 'Civil Engineering', 1, NULL);
+(1, 'DS', 1),
+(2, 'COA', 1),
+(3, 'WT', 2),
+(4, 'Java', 2);
+
+-- DATA INSERTION "courses"
+INSERT INTO "courses" ("Course_Id", "Course_Name", "Lateral_Allowed")
+VALUES
+(1, 'B. Tech.', true),
+(2, 'M. Tech.', false);
 
 -- DATA INSERTION "TypeTest"
 INSERT INTO "TypeTest" ("Int", "String", "Float", "Date", "Time", "DateTime", "Bool", "Int_Arr", "Str_Arr", "Float_arr", "Date_arr", "Time_Arr", "Datetime_Arr", "Bool_Arr")

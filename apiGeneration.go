@@ -7,9 +7,23 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 )
+
+type SlicedTableData struct {
+	TableName  string
+	PrimaryKey string
+	Columns    []Column
+}
+
+type TemplateFnCall struct {
+	filePath      string
+	templatePath  string
+	templateFuncs template.FuncMap
+	data          any
+}
 
 func (dbSchema *DB) writeAppFiles(appPath string) error {
 	basePath, err := os.Getwd()
@@ -18,25 +32,15 @@ func (dbSchema *DB) writeAppFiles(appPath string) error {
 	}
 	basePath = filepath.Join(basePath, "templates")
 
-	errorChannel := make(chan error, 5)
+	templatesData := dbSchema.getTemplatesData(basePath, appPath)
 
-	envApp, envTmpl := filepath.Join(appPath, ".env"), filepath.Join(basePath, "env.tmpl")
-	go writeEnvFile(envApp, envTmpl, errorChannel)
+	FILES_COUNT := len(templatesData)
 
-	nullApp, nullTmpl := filepath.Join(appPath, "nullTypes.go"), filepath.Join(basePath, "nullTypes.tmpl")
-	go writeNullTypes(nullApp, nullTmpl, errorChannel)
+	errorChannel := make(chan error, FILES_COUNT)
 
-	modelApp, modelTmpl := filepath.Join(appPath, "models.go"), filepath.Join(basePath, "model.tmpl")
-	go dbSchema.writeModels(modelApp, modelTmpl, errorChannel)
-
-	dbApp, dbTmpl := filepath.Join(appPath, "dbUtils.go"), filepath.Join(basePath, "db.tmpl")
-	go dbSchema.writeDbUtils(dbApp, dbTmpl, errorChannel)
-
-	httpApp, httpTmpl := filepath.Join(appPath, "httpUtils.go"), filepath.Join(basePath, "http.tmpl")
-	go dbSchema.writeHttpUtils(httpApp, httpTmpl, errorChannel)
-
-	mainApp, mainTmpl := filepath.Join(appPath, "main.go"), filepath.Join(basePath, "main.tmpl")
-	go dbSchema.writeMain(mainApp, mainTmpl, errorChannel)
+	for _, item := range templatesData {
+		go executeTemplate(item.filePath, item.templatePath, item.data, item.templateFuncs, errorChannel)
+	}
 
 	count := 0
 	for err := range errorChannel {
@@ -44,7 +48,7 @@ func (dbSchema *DB) writeAppFiles(appPath string) error {
 			return err
 		}
 		count++
-		if count == 6 {
+		if count == FILES_COUNT {
 			close(errorChannel)
 		}
 	}
@@ -52,49 +56,82 @@ func (dbSchema *DB) writeAppFiles(appPath string) error {
 	return nil
 }
 
-func writeEnvFile(filePath, templatePath string, channel chan<- error) {
-	var mainError error
+func (dbSchema *DB) getTemplatesData(basePath, appPath string) []TemplateFnCall {
+	slicedTableData := dbSchema.getSlicedTableData()
 
-	defer func() {
-		if mainError != nil {
-			errorMessage := fmt.Sprintf("error while writing .env file: %v", mainError)
-			mainError = errors.New(errorMessage)
-		}
-		channel <- mainError
-	}()
+	templateData := []TemplateFnCall{
+		// dbUtils
+		{
+			filePath:     filepath.Join(appPath, "dbUtils.go"),
+			templatePath: filepath.Join(basePath, "db.tmpl"),
+			data:         slicedTableData,
+			templateFuncs: template.FuncMap{
+				"HasSuffix":       strings.HasSuffix,
+				"increase":        increase,
+				"decrease":        decrease,
+				"getTableColumns": getTableColumnsFn(slicedTableData),
+			},
+		},
 
-	template, err := template.New("env.tmpl").ParseFiles(templatePath)
-	if err != nil {
-		mainError = err
-		return
+		// models
+		{
+			filePath:      filepath.Join(appPath, "models.go"),
+			templatePath:  filepath.Join(basePath, "model.tmpl"),
+			templateFuncs: template.FuncMap{"getDbType": getDbType},
+			data:          dbSchema.Tables,
+		},
+
+		// httpUtils
+		{
+			filePath:      filepath.Join(appPath, "httpUtils.go"),
+			templatePath:  filepath.Join(basePath, "http.tmpl"),
+			templateFuncs: template.FuncMap{"getPkType": getPkType},
+			data:          dbSchema.Tables,
+		},
+
+		// .env
+		{
+			filePath:     filepath.Join(appPath, ".env"),
+			templatePath: filepath.Join(basePath, "env.tmpl"),
+		},
+
+		// nullTypes
+		{
+			filePath:     filepath.Join(appPath, "nullTypes.go"),
+			templatePath: filepath.Join(basePath, "nullTypes.tmpl"),
+		},
+
+		// utils
+		{
+			filePath:     filepath.Join(appPath, "utils.go"),
+			templatePath: filepath.Join(basePath, "utils.tmpl"),
+		},
+
+		// main
+		{
+			filePath:     filepath.Join(appPath, "main.go"),
+			templatePath: filepath.Join(basePath, "main.tmpl"),
+		},
 	}
 
-	fp, err := os.Create(filePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	defer fp.Close()
-
-	if err := template.Execute(fp, nil); err != nil {
-		mainError = err
-		return
-	}
+	return templateData
 }
 
-func writeNullTypes(filePath, templatePath string, channel chan<- error) {
+func executeTemplate(filePath, templatePath string, templateData any, templateFuncs template.FuncMap, channel chan<- error) {
 	var mainError error
+
+	fileName := filepath.Base(filePath)
+	templateName := filepath.Base(templatePath)
 
 	defer func() {
 		if mainError != nil {
-			errorMessage := fmt.Sprintf("error while writing nullTypes.go file: %v", mainError)
+			errorMessage := fmt.Sprintf("error while writing %s file: %v", fileName, mainError)
 			mainError = errors.New(errorMessage)
 		}
 		channel <- mainError
 	}()
 
-	template, err := template.New("nullTypes.tmpl").ParseFiles(templatePath)
+	template, err := template.New(templateName).Funcs(templateFuncs).ParseFiles(templatePath)
 	if err != nil {
 		mainError = err
 		return
@@ -108,139 +145,7 @@ func writeNullTypes(filePath, templatePath string, channel chan<- error) {
 
 	defer fp.Close()
 
-	if err := template.Execute(fp, nil); err != nil {
-		mainError = err
-		return
-	}
-}
-
-func (dbSchema *DB) writeModels(filePath, templatePath string, channel chan<- error) {
-	var mainError error
-
-	defer func() {
-		if mainError != nil {
-			errorMessage := fmt.Sprintf("error while writing models.go file: %v", mainError)
-			mainError = errors.New(errorMessage)
-		}
-		channel <- mainError
-	}()
-
-	funcs := template.FuncMap{"getDbType": getDbType}
-
-	template, err := template.New("model.tmpl").Funcs(funcs).ParseFiles(templatePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	fp, err := os.Create(filePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	defer fp.Close()
-
-	if err := template.Execute(fp, dbSchema.Tables); err != nil {
-		mainError = err
-		return
-	}
-}
-
-func (dbSchema *DB) writeDbUtils(filePath, templatePath string, channel chan<- error) {
-	var mainError error
-
-	defer func() {
-		if mainError != nil {
-			errorMessage := fmt.Sprintf("error while writing dbUtils.go file: %v", mainError)
-			mainError = errors.New(errorMessage)
-		}
-		channel <- mainError
-	}()
-
-	funcs := template.FuncMap{
-		"HasSuffix": strings.HasSuffix,
-		"increase":  increase,
-		"decrease":  decrease,
-	}
-
-	template, err := template.New("db.tmpl").Funcs(funcs).ParseFiles(templatePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	fp, err := os.Create(filePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	defer fp.Close()
-
-	if err := template.Execute(fp, dbSchema.Tables); err != nil {
-		mainError = err
-		return
-	}
-}
-
-func (dbSchema *DB) writeHttpUtils(filePath, templatePath string, channel chan<- error) {
-	var mainError error
-
-	defer func() {
-		if mainError != nil {
-			errorMessage := fmt.Sprintf("error while writing httpUtils.go file: %v", mainError)
-			mainError = errors.New(errorMessage)
-		}
-		channel <- mainError
-	}()
-
-	template, err := template.New("http.tmpl").ParseFiles(templatePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	fp, err := os.Create(filePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	defer fp.Close()
-
-	if err := template.Execute(fp, dbSchema.Tables); err != nil {
-		mainError = err
-		return
-	}
-}
-
-func (dbSchema *DB) writeMain(filePath, templatePath string, channel chan<- error) {
-	var mainError error
-
-	defer func() {
-		if mainError != nil {
-			errorMessage := fmt.Sprintf("error while writing main.go file: %v", mainError)
-			mainError = errors.New(errorMessage)
-		}
-		channel <- mainError
-	}()
-
-	template, err := template.New("main.tmpl").ParseFiles(templatePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	fp, err := os.Create(filePath)
-	if err != nil {
-		mainError = err
-		return
-	}
-
-	defer fp.Close()
-
-	if err := template.Execute(fp, nil); err != nil {
+	if err := template.Execute(fp, templateData); err != nil {
 		mainError = err
 		return
 	}
@@ -296,4 +201,57 @@ func getDbType(datatype string) string {
 	}
 
 	return res
+}
+
+func getPkType(table Table) string {
+	if table.PrimaryKey == "" {
+		return "CustomNullInt"
+	}
+
+	return getDbType(table.Columns[table.PrimaryKey].DataType)
+}
+
+// Returns table along with its columns (ordered by names) in slice, instead of maps
+func (dbSchema *DB) getSlicedTableData() []SlicedTableData {
+	tablesData := []SlicedTableData{}
+
+	for _, table := range dbSchema.Tables {
+		item := SlicedTableData{
+			TableName:  table.TableName,
+			PrimaryKey: table.PrimaryKey,
+			Columns:    []Column{},
+		}
+
+		for _, column := range table.Columns {
+			item.Columns = append(item.Columns, column)
+		}
+
+		slices.SortFunc(item.Columns, func(col1, col2 Column) int {
+			if col1.ColumnName > col2.ColumnName {
+				return 1
+			}
+
+			if col1.ColumnName < col2.ColumnName {
+				return -1
+			}
+
+			return 0
+		})
+
+		tablesData = append(tablesData, item)
+	}
+
+	return tablesData
+}
+
+// Returns a function to get column associated with a table
+func getTableColumnsFn(tablesData []SlicedTableData) func(tableName string) []Column {
+	return func(tableName string) []Column {
+		for _, table := range tablesData {
+			if table.TableName == tableName {
+				return table.Columns
+			}
+		}
+		return []Column{}
+	}
 }

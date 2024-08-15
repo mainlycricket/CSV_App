@@ -87,9 +87,33 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	ctx := r.Context()
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
-	data, err := db_readAll_ {{- .TableName -}} (ctx)
+	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	var clause string
+	var args []any
+
+	if len(queryValues) > 0 {
+		clause, args, err = getQueryClauseArgs(queryValues, Map_ {{- .TableName -}}, "{{- .TableName -}}")
+
+		if err != nil {
+			message := fmt.Sprintf("error while parsing request query: %v", err)
+			log.Print(message)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(getJsonResponse(false, message, nil))
+			return
+		}
+	}
+
+	ctx := r.Context()
+	data, err := db_readAll_ {{- .TableName -}} (ctx, clause, args)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -107,7 +131,7 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	values, err := url.ParseQuery(r.URL.RawQuery)
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
 		message := fmt.Sprintf("error while parsing request query: %v", err)
@@ -117,8 +141,15 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := values.Get("id")
 	ctx := r.Context()
+	id := getPkParam(queryValues, "{{- getPkType . -}}")
+	if len(id) == 0 {
+		message := fmt.Sprintf("missing id param in request query")
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
 
 	data, err := db_read_ {{- .TableName -}} _ByPK (ctx, id)
 
@@ -138,7 +169,7 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	values, err := url.ParseQuery(r.URL.RawQuery)
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
 		message := fmt.Sprintf("error while parsing request query: %v", err)
@@ -148,8 +179,15 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := values.Get("id")
 	ctx := r.Context()
+	id := getPkParam(queryValues, "{{- getPkType . -}}")
+	if len(id) == 0 {
+		message := fmt.Sprintf("missing id param in request query")
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
 
 	var item Table_ {{- .TableName }}
 
@@ -177,7 +215,7 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	values, err := url.ParseQuery(r.URL.RawQuery)
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
 		message := fmt.Sprintf("error while parsing request query: %v", err)
@@ -187,8 +225,15 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := values.Get("id")
 	ctx := r.Context()
+	id := getPkParam(queryValues, "{{- getPkType . -}}")
+	if len(id) == 0 {
+		message := fmt.Sprintf("missing id param in request query")
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
 
 	if err := db_delete_ {{- .TableName -}} (ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)

@@ -13,7 +13,7 @@ func main() {
 	argsMessage := "Invalid args! Provide:\n'schema' to generate schema.json or \n'sql' to generate db.sql or \n'app' to generate app"
 
 	if len(args) != 2 {
-		log.Fatalf(argsMessage)
+		log.Fatal(argsMessage)
 	}
 
 	input := strings.ToLower(strings.TrimSpace(args[1]))
@@ -100,6 +100,6 @@ func main() {
 
 		fmt.Println("app generated")
 	} else {
-		log.Fatalf(argsMessage)
+		log.Fatal(argsMessage)
 	}
 }

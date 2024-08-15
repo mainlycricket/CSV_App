@@ -73,9 +73,9 @@ func connectDB() (*sql.DB, error) {
 	return db, nil
 }
 
-{{ range $tableName, $table := . }}
+{{ range $table := . }}
 
-// {{ $tableName }} CRUD
+// {{ $table.TableName }} CRUD
 
 {{ template "insert" $table }}
 {{ template "readAll" $table }}
@@ -92,23 +92,23 @@ func db_insert_ {{- .TableName -}} (ctx context.Context, item *Table_ {{- .Table
 
 	{{- $n := len .Columns -}}
 
-	{{- range $columnName, $column := .Columns -}}
-		"{{- $columnName -}}"
+	{{- range $column := .Columns -}}
+		"{{- $column.ColumnName -}}"
 		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
-			,
+			{{- ", " -}}
 		{{- end -}}
 	{{- end -}}
 
 	) VALUES ( 
 
 	{{- $idx := 1 -}}
-	{{- $n := len .Columns -}}
+	{{- $n = len .Columns -}}
 
-	{{- range $columnName, $column := .Columns -}}
+	{{- range $column := .Columns -}}
 		${{- $idx -}}
 		{{- if lt $idx $n -}}
-			,
+			{{- ", " -}}
 		{{- end -}}
 		{{- $idx = increase $idx -}}
 	{{- end -}}
@@ -124,18 +124,17 @@ func db_insert_ {{- .TableName -}} (ctx context.Context, item *Table_ {{- .Table
 	_, err = stmt.ExecContext(ctx,
 
 	{{- $n = len $.Columns -}}
-	{{- $tableName := .TableName -}}
 
-	{{- range $columnName, $column := .Columns -}}
+	{{- range $column := .Columns -}}
 		{{- if HasSuffix $column.DataType "[]" -}}
-			pq.Array(item.Column_  {{- $columnName -}} )
+			pq.Array(item.Column_  {{- $column.ColumnName -}} )
 		{{- else -}}
-			item.Column_ {{- $columnName -}}
+			item.Column_ {{- $column.ColumnName -}}
 		{{- end -}}
 
 		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
-			,
+			{{- ", " -}}
 		{{- end -}}
 
 	{{- end -}}
@@ -153,11 +152,63 @@ func db_insert_ {{- .TableName -}} (ctx context.Context, item *Table_ {{- .Table
 
 
 {{- define "readAll" -}}
-
-func db_readAll_ {{- .TableName -}}  (ctx context.Context) ([]Table_ {{- .TableName -}} , error) {
-	rows, err := db.QueryContext(ctx, `SELECT * FROM "{{- .TableName -}}"`)
+func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []any) ([] Table_ {{- .TableName -}} _response, error) {
+	data := []Table_ {{- .TableName -}} _response{}
 	
-	data := []Table_ {{- .TableName -}}  {}
+	query := `SELECT {{- " " -}}
+
+	{{- if eq (len .PrimaryKey) 0 -}} "{{- .TableName -}} "."__ID", {{ end -}}
+
+	{{- $n := len .Columns  -}}
+	{{ $tableName := .TableName  }}
+
+	{{- range $column := .Columns -}}
+		{{- if $column.ForeignTable -}}
+			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
+			{{- $fNum := len $foreignColumns -}}
+
+			{{- range $foreignColumn := $foreignColumns -}}
+				" {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
+				
+				{{- $fNum = decrease $fNum -}}
+				{{- if gt $fNum 0 -}}
+					{{- ", " -}}
+				{{- end -}}
+			{{- end -}}
+
+		{{- else -}}
+			" {{- $tableName -}} "." {{- $column.ColumnName -}}"
+		{{- end -}}
+
+		{{- $n = decrease $n -}}
+		{{- if gt $n 0 -}}
+			{{- ", " -}}
+		{{- end -}}
+
+	{{- end -}}
+
+	{{- " " -}} FROM "{{ $tableName }}"
+
+	{{- range $column := .Columns -}}
+		{{- if $column.ForeignTable -}}
+			{{- " INNER JOIN " -}} "{{- $column.ForeignTable -}}" 
+			{{- " ON " -}} "{{- $tableName -}} "."  {{- $column.ColumnName -}}"
+			{{- " = " -}} "{{- $column.ForeignTable -}} "."  {{- $column.ForeignField -}}"
+		{{- end -}}
+	{{- end -}}
+	`
+
+	query += clause
+
+	preparedQuery, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer preparedQuery.Close()
+
+	rows, err := preparedQuery.QueryContext(ctx, args...)
 
 	if err != nil {
 		return data, err
@@ -166,7 +217,7 @@ func db_readAll_ {{- .TableName -}}  (ctx context.Context) ([]Table_ {{- .TableN
 	defer rows.Close()
 
 	for rows.Next() {
-		item := Table_ {{- .TableName -}} {}
+		item := Table_ {{- .TableName -}} _response{}
 		
 		rows.Scan(
 
@@ -174,20 +225,37 @@ func db_readAll_ {{- .TableName -}}  (ctx context.Context) ([]Table_ {{- .TableN
 			&item.ID__,
 		{{- end -}}
 
-		{{- $n := len .Columns  -}}
+		{{- $n = len .Columns  -}}
 
-		{{- range $columnName, $column := .Columns -}}
+		{{- range $column := .Columns -}}
+			{{- if $column.ForeignTable -}}
+				{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
+				{{- $fNum := len $foreignColumns -}}
 
-			{{- $n = decrease $n -}}
+				{{- range $foreignColumn := $foreignColumns -}}
+					{{- if HasSuffix $foreignColumn.DataType "[]" -}}
+						pq.Array(&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}} )
+					{{- else -}}
+						&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}}
+					{{- end -}}
 
-			{{- if HasSuffix $column.DataType "[]" -}}
-				pq.Array(&item.Column_  {{- $columnName -}} )
+					{{- $fNum = decrease $fNum -}}
+					{{- if gt $fNum 0 -}}
+						{{- ", " -}}
+					{{- end -}}
+				{{- end -}}
+
 			{{- else -}}
-				&item.Column_ {{- $columnName -}}
+				{{- if HasSuffix $column.DataType "[]" -}}
+					pq.Array(&item.Column_  {{- $column.ColumnName -}} )
+				{{- else -}}
+					&item.Column_ {{- $column.ColumnName -}}
+				{{- end -}}
 			{{- end -}}
 
+			{{- $n = decrease $n -}}
 			{{- if gt $n 0 -}}
-				,
+				{{- ", " -}}
 			{{- end -}}
 
 		{{- end -}}
@@ -203,22 +271,66 @@ func db_readAll_ {{- .TableName -}}  (ctx context.Context) ([]Table_ {{- .TableN
 {{- end -}}
 
 {{ define "readByPK" }}
+func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {{- .TableName -}} _response, error) {
+	item := Table_ {{- .TableName -}} _response {}
 
-func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {{- .TableName -}}, error) {
-	stmt, err := db.PrepareContext(ctx, `SELECT * FROM "{{- .TableName -}}" WHERE 
+	stmt, err := db.PrepareContext(ctx, `SELECT {{- " " -}}
+
+	{{- if eq (len .PrimaryKey) 0 -}} "{{- .TableName -}} "."__ID", {{ end -}}
+
+	{{- $n := len .Columns  -}}
+	{{- $tableName := .TableName -}}
+
+	{{- range $column := .Columns -}}
+		{{- if $column.ForeignTable -}}
+			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
+			{{- $fNum := len $foreignColumns -}}
+
+			{{- range $foreignColumn := $foreignColumns -}}
+				" {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
+				
+				{{- $fNum = decrease $fNum -}}
+				{{- if gt $fNum 0 -}}
+					{{- ", " -}}
+				{{- end -}}
+			{{- end -}}
+
+		{{- else -}}
+			" {{- $tableName -}} "." {{- $column.ColumnName -}}"
+		{{- end -}}
+
+		{{- $n = decrease $n -}}
+		{{- if gt $n 0 -}}
+			{{- ", " -}}
+		{{- end -}}
+
+	{{- end -}}
+
+	{{- " " -}} FROM "{{ $tableName }}"
+
+	{{- range $column := .Columns -}}
+		{{- if $column.ForeignTable -}}
+			{{- " INNER JOIN " -}} "{{- $column.ForeignTable -}}" 
+			{{- " ON " -}} "{{- $tableName -}} "."  {{- $column.ColumnName -}}"
+			{{- " = " -}} "{{- $column.ForeignTable -}} "."  {{- $column.ForeignField -}}"
+		{{- end -}}
+	{{- end -}}
+
+	{{- " WHERE " -}}
 	
 	{{- if eq (len .PrimaryKey) 0 -}}
-		{{- " \"__ID\" " -}}
+		 "{{- .TableName -}} "."__ID" 
 	{{- else -}}
-		{{- " " -}} "{{- .PrimaryKey -}}" {{- " " -}}
+		"{{- .TableName -}} "."  {{- .PrimaryKey -}}" 
 	{{- end -}}
-	= $1`)
-
-	item := Table_ {{- .TableName -}} {}
+	
+	{{- " " -}} = $1`)
 
 	if err != nil {
 		return item, err
 	}
+
+	defer stmt.Close()
 
 	if err := stmt.QueryRowContext(ctx, id).Scan(
 
@@ -228,16 +340,35 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 
 	{{- $n := len .Columns -}}
 
-	{{- range $columnName, $column := .Columns -}}
-		{{- if HasSuffix $column.DataType "[]" -}}
-			pq.Array(&item.Column_  {{- $columnName -}} )
+	{{- range $column := .Columns -}}
+		{{- if $column.ForeignTable -}}
+			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
+			{{- $fNum := len $foreignColumns -}}
+
+			{{- range $foreignColumn := $foreignColumns -}}
+				{{- if HasSuffix $foreignColumn.DataType "[]" -}}
+					pq.Array(&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}} )
+				{{- else -}}
+					&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}}
+				{{- end -}}
+
+				{{- $fNum = decrease $fNum -}}
+				{{- if gt $fNum 0 -}}
+					{{- ", " -}}
+				{{- end -}}
+			{{- end -}}
+
 		{{- else -}}
-			&item.Column_ {{- $columnName -}}
+			{{- if HasSuffix $column.DataType "[]" -}}
+				pq.Array(&item.Column_  {{- $column.ColumnName -}} )
+			{{- else -}}
+				&item.Column_ {{- $column.ColumnName -}}
+			{{- end -}}
 		{{- end -}}
 
 		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
-			,
+			{{- ", " -}}
 		{{- end -}}
 
 	{{- end -}}
@@ -261,16 +392,16 @@ func db_update_ {{- .TableName -}} (ctx context.Context, id string, item *Table_
 	{{- $n := len .Columns -}}
 
 	{{- if eq (len .PrimaryKey) 0 -}}
-		"__ID" = $1,
+		"__ID" = $1, {{- " " -}}
 		{{- $idx = increase $idx -}}
 		{{- $n = increase $n -}}
 	{{- end -}}
 
-	{{- range $columnName, $column := .Columns -}}
-		"{{ $columnName -}}" = $ {{- $idx -}}
+	{{- range $column := .Columns -}}
+		"{{ $column.ColumnName -}}" = $ {{- $idx -}}
 
 		{{- if lt $idx $n -}}
-			,
+			{{- ", " -}}
 		{{- end -}}
 
 		{{- $idx = increase $idx -}}
@@ -280,7 +411,7 @@ func db_update_ {{- .TableName -}} (ctx context.Context, id string, item *Table_
 	{{- " " -}} WHERE {{- " " -}}
 	
 	{{- if eq (len .PrimaryKey) 0 -}}
-		"__ID" == $ {{- $idx -}}
+		"__ID" = $ {{- $idx -}}
 	{{- else -}}
 		"{{ .PrimaryKey }}" = $ {{- $idx -}}
 	{{- end -}}
@@ -299,11 +430,11 @@ func db_update_ {{- .TableName -}} (ctx context.Context, id string, item *Table_
 		item.ID__,
 	{{- end -}}
 	
-	{{- range $columnName, $column := .Columns -}}
+	{{- range $column := .Columns -}}
 		{{- if HasSuffix $column.DataType "[]" -}}
-			pq.Array(&item.Column_  {{- $columnName -}} ),
+			pq.Array(item.Column_  {{- $column.ColumnName -}} ),
 		{{- else -}}
-			&item.Column_ {{- $columnName -}},
+			item.Column_ {{- $column.ColumnName -}},
 		{{- end -}} 
 	{{- end -}}
 	
@@ -338,6 +469,8 @@ func db_delete_ {{- .TableName -}} (ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+
+	defer stmt.Close()
 
 	result, err := stmt.ExecContext(ctx, id)
 

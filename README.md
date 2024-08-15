@@ -2,7 +2,7 @@
 
 - This project generates a single `.sql` file (PostgreSQL database) for the provided `.csv` files in `./data` directory.
 - It also generates a basic standalone CRUD API for these tables.
-- I aim to add more features to this application as well as the generated application.
+- I am currently focused on adding more features to the generated app.
 - Please read this doc thoroughly to understand how it works.
 
 ![App Flow](./data/CSV_App.png)
@@ -33,10 +33,10 @@ go build . && ./CSV_App schema
 
 - Table Names & Column Names should NOT be changed as they are **_sanitized_**
 
-  > [!NOTE]
-  > Leading & Trailing spaces are trimmed in sanitization.
-  > Any sequence of non-alphanumeric character is replaced by a single underscore.
-  > E.g. `!'Table Name'!` is transformed into `_Table_Name_`
+> [!NOTE]
+> Leading & Trailing spaces are trimmed in sanitization.
+> Any sequence of non-alphanumeric character is replaced by a single underscore.
+> E.g. `!'Table Name'!` is transformed into `_Table_Name_`
 
 #### Step 2: SQL File Generation
 
@@ -79,7 +79,7 @@ go build . && ./CSV_App app
 
 > [!NOTE]
 > Checkout [TypeTest.csv](./data/TypeTest.csv) to understand data formats in CSV files.
-> If a column doesn't have any value, it's datatype is marked as empty in `schema.json` and it should be set manually.
+> If a column doesn't have any value, its datatype is marked as empty in `schema.json` and it should be set manually.
 
 ### Column Constraints
 
@@ -165,6 +165,8 @@ If a column is marked as a foreign key, the referenced column is mapped with the
   - `PUT /tableName` - update single row by primary key
   - `DELETE /tableName` - delete single row by primary key
 
+- Checkout the sample Postman collection for sample tables [here](https://documenter.getpostman.com/view/25403102/2sA3s7iUZc)
+
 - In POST & UPDATE request, the data should be in JSON format
 
 - The key should have the same name as the column name in schema.json
@@ -184,9 +186,10 @@ If a column is marked as a foreign key, the referenced column is mapped with the
   }
   ```
 
-- In single GET, PUT and DELETE routes, the URL should specifiy the primary key value for the row with `id` as key, e.g: `localhost:8080/studentsByPK?id=1`
+- In single GET, PUT and DELETE routes, the URL should specifiy the primary key value for the row with `id` as key, e.g: `localhost:8080/tableByPK?id=1`
 
-  > [!NOTE]
-  > The key should always be `id` regardless of the primary key column name in the table.
-  > The value should be in the same format as they are in CSV files.
-  > If an array column in Primary Key, it should be enclosed in curly braces {}. e.g. `localhost:8080/studentsByPK?id={1, 2, 3}`
+> [!NOTE]
+> The key should always be `id` regardless of the primary key column name in the table.
+> The value should be in the same format as they are in CSV files.
+> For array columns except string arrays, send values as `localhost:8080/tableByPK?id=1,2,3`
+> For string columns, send values as individual string elements as `localhost:8080/tableByPK?id=text1&id=text2&id=text3`

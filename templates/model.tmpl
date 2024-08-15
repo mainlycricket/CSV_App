@@ -1,13 +1,52 @@
 package main
 
+type Column struct {
+	ColumnName    string
+	DataType      string
+	NotNull       bool
+	minIndividual interface{}
+	maxIndividual interface{}
+	minArrLen     int // 0 indicates unset or non-array type
+	maxArrLen     int // 0 indicates unset or non-array type
+	Enums         []interface{}
+	pgType        string
+}
+
 {{ range $tableName, $table := . }}
 type Table_{{ $tableName }} struct {
+    {{- if eq (len $table.PrimaryKey) 0 -}}
+        ID__ CustomNullInt `json:"__ID"`;
+    {{- end -}}
+
+    {{- range $columnName, $column := $table.Columns -}}
+	    Column_{{ $columnName }} {{ getDbType $column.DataType }} `json:"{{ $columnName }}"`;
+    {{- end -}}
+}
+
+type Table_ {{- $tableName -}} _response struct {
     {{- if eq (len $table.PrimaryKey) 0 -}}
     ID__ CustomNullInt `json:"__ID"`;
     {{- end -}}
 
     {{- range $columnName, $column := $table.Columns -}}
-	Column_{{ $columnName }} {{ getDbType $column.DataType }} `json:"{{ $columnName }}"`;
+        {{- if $column.ForeignTable -}}
+            Fkey_{{ $columnName }} Table_{{ $column.ForeignTable }} `json:"{{ $columnName }}"`;
+        {{- else -}}
+            Column_{{ $columnName }} {{ getDbType $column.DataType }} `json:"{{ $columnName }}"`;
+        {{- end -}}
     {{- end -}}
 }
+
+var Map_ {{- $tableName -}} = map[string]Column {
+{{ range $columnName, $column := $table.Columns }}
+    "{{ $columnName }}" : {  
+            ColumnName: " {{- $columnName -}} ",
+            DataType: " {{- getDbType $column.DataType -}} ",
+            NotNull: {{ $column.NotNull -}},
+            pgType: " {{- $column.DataType -}} ",
+    },
+
+{{ end }}
+}
+
 {{ end -}}

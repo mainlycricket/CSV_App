@@ -25,7 +25,17 @@ func main() {
 		}
 		fmt.Println("Generated Schema successfully!")
 	} else if input == "sql" {
-		dbSchema, err := readSchema()
+		var dbSchema DB
+
+		basePath, err := os.Getwd()
+
+		if err != nil {
+			log.Fatalf("error while reading base path: %v", err)
+		}
+
+		schemaFilePath := filepath.Join(basePath, "data", "schema.json")
+
+		err = readJsonFile(schemaFilePath, &dbSchema)
 
 		if err != nil {
 			log.Fatalf("Failed to parse DB schema: %v", err)
@@ -52,11 +62,6 @@ func main() {
 			log.Fatalf("error while adding foreign key constriants: %v", err)
 		}
 
-		basePath, err := os.Getwd()
-		if err != nil {
-			log.Fatalf("error while reading current directory: %v", err)
-		}
-
 		filePath := filepath.Join(basePath, "data", "db.sql")
 
 		if err := writeFile(filePath, createBuffer, insertionBuffer, foreignBuffer); err != nil {
@@ -65,22 +70,34 @@ func main() {
 
 		fmt.Println("db.sql generated")
 	} else if input == "app" {
-		dbSchema, err := readSchema()
+		var dbSchema DB
+		var appConfig AppCongif
+
+		basePath, err := os.Getwd()
 
 		if err != nil {
+			log.Fatalf("error while reading base path: %v", err)
+		}
+
+		schemaFilePath := filepath.Join(basePath, "data", "schema.json")
+		if err := readJsonFile(schemaFilePath, &dbSchema); err != nil {
 			log.Fatalf("Failed to parse DB schema: %v", err)
 		}
 
-		err = dbSchema.validateSchema()
+		appFilePath := filepath.Join(basePath, "data", "appConfig.json")
+		if err := readJsonFile(appFilePath, &appConfig); err != nil {
+			log.Fatalf("Failed to parse app config: %v", err)
+		}
 
-		if err != nil {
+		if err := dbSchema.validateSchema(); err != nil {
 			log.Fatalf("Schema Validation Failed: %v", err)
+
 		}
 
-		basePath, err := os.Getwd()
-		if err != nil {
-			log.Fatalf("error while reading current directory path: %v", err)
-		}
+		// TODO
+		// if err := appConfig.validateConfig(); err != nil {
+		// 	log.Fatalf("App Config Validation Failed: %v", err)
+		// }
 
 		appPath := filepath.Join(basePath, "app")
 
@@ -88,7 +105,7 @@ func main() {
 			log.Fatalf("error while creating app directory: %v", err)
 		}
 
-		if err := dbSchema.writeAppFiles(appPath); err != nil {
+		if err := dbSchema.writeAppFiles(appPath, &appConfig); err != nil {
 			log.Fatalf("error while writing app files: %v", err)
 		}
 

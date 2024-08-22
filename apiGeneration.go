@@ -12,10 +12,12 @@ import (
 	"text/template"
 )
 
-type SlicedTableData struct {
-	TableName  string
-	PrimaryKey string
-	Columns    []Column
+type TemplateTableData struct {
+	TableName   string
+	PrimaryKey  string
+	Columns     []Column
+	IsAuthTable bool
+	TableAuth   TableAuthConfig
 }
 
 type TemplateFnCall struct {
@@ -25,14 +27,14 @@ type TemplateFnCall struct {
 	data          any
 }
 
-func (dbSchema *DB) writeAppFiles(appPath string) error {
+func (dbSchema *DB) writeAppFiles(appPath string, appConfig *AppCongif) error {
 	basePath, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 	basePath = filepath.Join(basePath, "templates")
 
-	templatesData := dbSchema.getTemplatesData(basePath, appPath)
+	templatesData := dbSchema.getTemplatesMetaData(basePath, appPath, appConfig)
 
 	FILES_COUNT := len(templatesData)
 
@@ -56,8 +58,8 @@ func (dbSchema *DB) writeAppFiles(appPath string) error {
 	return nil
 }
 
-func (dbSchema *DB) getTemplatesData(basePath, appPath string) []TemplateFnCall {
-	slicedTableData := dbSchema.getSlicedTableData()
+func (dbSchema *DB) getTemplatesMetaData(basePath, appPath string, appConfig *AppCongif) []TemplateFnCall {
+	slicedTableData := dbSchema.getSlicedTableData(appConfig)
 
 	templateData := []TemplateFnCall{
 		// dbUtils
@@ -78,7 +80,7 @@ func (dbSchema *DB) getTemplatesData(basePath, appPath string) []TemplateFnCall 
 			filePath:      filepath.Join(appPath, "models.go"),
 			templatePath:  filepath.Join(basePath, "model.tmpl"),
 			templateFuncs: template.FuncMap{"getDbType": getDbType},
-			data:          dbSchema.Tables,
+			data:          slicedTableData,
 		},
 
 		// httpUtils
@@ -86,7 +88,7 @@ func (dbSchema *DB) getTemplatesData(basePath, appPath string) []TemplateFnCall 
 			filePath:      filepath.Join(appPath, "httpUtils.go"),
 			templatePath:  filepath.Join(basePath, "http.tmpl"),
 			templateFuncs: template.FuncMap{"getPkType": getPkType},
-			data:          dbSchema.Tables,
+			data:          slicedTableData,
 		},
 
 		// .env
@@ -105,6 +107,7 @@ func (dbSchema *DB) getTemplatesData(basePath, appPath string) []TemplateFnCall 
 		{
 			filePath:     filepath.Join(appPath, "utils.go"),
 			templatePath: filepath.Join(basePath, "utils.tmpl"),
+			data:         slicedTableData,
 		},
 
 		// main
@@ -159,7 +162,6 @@ func executeAppCommands(appPath string) error {
 	commands := []string{
 		"go fmt",
 		"go mod init app.com/app",
-		"go get github.com/lib/pq",
 		"go mod tidy",
 	}
 
@@ -203,23 +205,31 @@ func getDbType(datatype string) string {
 	return res
 }
 
-func getPkType(table Table) string {
+func getPkType(table TemplateTableData) string {
 	if table.PrimaryKey == "" {
 		return "CustomNullInt"
 	}
 
-	return getDbType(table.Columns[table.PrimaryKey].DataType)
+	for _, column := range table.Columns {
+		if column.ColumnName == table.PrimaryKey {
+			return getDbType(column.DataType)
+		}
+	}
+
+	return ""
 }
 
 // Returns table along with its columns (ordered by names) in slice, instead of maps
-func (dbSchema *DB) getSlicedTableData() []SlicedTableData {
-	tablesData := []SlicedTableData{}
+func (dbSchema *DB) getSlicedTableData(appConfig *AppCongif) []TemplateTableData {
+	tablesData := []TemplateTableData{}
 
 	for _, table := range dbSchema.Tables {
-		item := SlicedTableData{
-			TableName:  table.TableName,
-			PrimaryKey: table.PrimaryKey,
-			Columns:    []Column{},
+		item := TemplateTableData{
+			TableName:   table.TableName,
+			PrimaryKey:  table.PrimaryKey,
+			Columns:     []Column{},
+			IsAuthTable: table.TableName == appConfig.AuthTable,
+			TableAuth:   appConfig.TablesConfig[table.TableName],
 		}
 
 		for _, column := range table.Columns {
@@ -245,7 +255,7 @@ func (dbSchema *DB) getSlicedTableData() []SlicedTableData {
 }
 
 // Returns a function to get column associated with a table
-func getTableColumnsFn(tablesData []SlicedTableData) func(tableName string) []Column {
+func getTableColumnsFn(tablesData []TemplateTableData) func(tableName string) []Column {
 	return func(tableName string) []Column {
 		for _, table := range tablesData {
 			if table.TableName == tableName {

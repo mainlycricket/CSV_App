@@ -1,5 +1,7 @@
 package main
 
+import "github.com/golang-jwt/jwt/v5"
+
 type Column struct {
 	ColumnName    string
 	DataType      string
@@ -10,6 +12,96 @@ type Column struct {
 	maxArrLen     int // 0 indicates unset or non-array type
 	Enums         []interface{}
 	pgType        string
+}
+
+type Table_students struct {
+	Column_Branch_Id      CustomNullInt    `json:"Branch_Id"`
+	Column_Course_Id      CustomNullInt    `json:"Course_Id"`
+	Column_Student_Father CustomNullString `json:"Student_Father"`
+	Column_Student_Id     CustomNullInt    `json:"Student_Id"`
+	Column_Student_Name   CustomNullString `json:"Student_Name"`
+}
+
+type Table_students_response struct {
+	Fkey_Branch_Id        Table_branches   `json:"Branch_Id"`
+	Fkey_Course_Id        Table_courses    `json:"Course_Id"`
+	Column_Student_Father CustomNullString `json:"Student_Father"`
+	Column_Student_Id     CustomNullInt    `json:"Student_Id"`
+	Column_Student_Name   CustomNullString `json:"Student_Name"`
+}
+
+var Map_students = map[string]Column{
+
+	"Branch_Id": {
+		ColumnName: "Branch_Id",
+		DataType:   "CustomNullInt",
+		NotNull:    true,
+		pgType:     "integer",
+	},
+
+	"Course_Id": {
+		ColumnName: "Course_Id",
+		DataType:   "CustomNullInt",
+		NotNull:    true,
+		pgType:     "integer",
+	},
+
+	"Student_Father": {
+		ColumnName: "Student_Father",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+	},
+
+	"Student_Id": {
+		ColumnName: "Student_Id",
+		DataType:   "CustomNullInt",
+		NotNull:    true,
+		pgType:     "integer",
+	},
+
+	"Student_Name": {
+		ColumnName: "Student_Name",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+	},
+}
+
+type Table_subjects struct {
+	Column_Branch_Id    CustomNullInt    `json:"Branch_Id"`
+	Column_Subject_Id   CustomNullInt    `json:"Subject_Id"`
+	Column_Subject_Name CustomNullString `json:"Subject_Name"`
+}
+
+type Table_subjects_response struct {
+	Fkey_Branch_Id      Table_branches   `json:"Branch_Id"`
+	Column_Subject_Id   CustomNullInt    `json:"Subject_Id"`
+	Column_Subject_Name CustomNullString `json:"Subject_Name"`
+}
+
+var Map_subjects = map[string]Column{
+
+	"Branch_Id": {
+		ColumnName: "Branch_Id",
+		DataType:   "CustomNullInt",
+		NotNull:    true,
+		pgType:     "integer",
+	},
+
+	"Subject_Id": {
+		ColumnName: "Subject_Id",
+		DataType:   "CustomNullInt",
+		NotNull:    true,
+		pgType:     "integer",
+	},
+
+	"Subject_Name": {
+		ColumnName: "Subject_Name",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+	},
 }
 
 type Table_TypeTest struct {
@@ -230,92 +322,25 @@ var Map_courses = map[string]Column{
 	},
 }
 
-type Table_students struct {
-	Column_Branch_Id      CustomNullInt    `json:"Branch_Id"`
-	Column_Course_Id      CustomNullInt    `json:"Course_Id"`
-	Column_Student_Father CustomNullString `json:"Student_Father"`
-	Column_Student_Id     CustomNullInt    `json:"Student_Id"`
-	Column_Student_Name   CustomNullString `json:"Student_Name"`
+type Table_login struct {
+	Column_password CustomNullString `json:"password"`
+	Column_role     CustomNullString `json:"role"`
+	Column_username CustomNullString `json:"username"`
 }
 
-type Table_students_response struct {
-	Fkey_Branch_Id        Table_branches   `json:"Branch_Id"`
-	Fkey_Course_Id        Table_courses    `json:"Course_Id"`
-	Column_Student_Father CustomNullString `json:"Student_Father"`
-	Column_Student_Id     CustomNullInt    `json:"Student_Id"`
-	Column_Student_Name   CustomNullString `json:"Student_Name"`
+type CustomJwtClaims struct {
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	jwt.RegisteredClaims
 }
 
-var Map_students = map[string]Column{
-
-	"Branch_Id": {
-		ColumnName: "Branch_Id",
-		DataType:   "CustomNullInt",
-		NotNull:    true,
-		pgType:     "integer",
-	},
-
-	"Course_Id": {
-		ColumnName: "Course_Id",
-		DataType:   "CustomNullInt",
-		NotNull:    true,
-		pgType:     "integer",
-	},
-
-	"Student_Father": {
-		ColumnName: "Student_Father",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-	},
-
-	"Student_Id": {
-		ColumnName: "Student_Id",
-		DataType:   "CustomNullInt",
-		NotNull:    true,
-		pgType:     "integer",
-	},
-
-	"Student_Name": {
-		ColumnName: "Student_Name",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-	},
+type Login_Input struct {
+	Username CustomNullString `json:"username"`
+	Password CustomNullString `json:"password"`
 }
 
-type Table_subjects struct {
-	Column_Branch_Id    CustomNullInt    `json:"Branch_Id"`
-	Column_Subject_Id   CustomNullInt    `json:"Subject_Id"`
-	Column_Subject_Name CustomNullString `json:"Subject_Name"`
-}
-
-type Table_subjects_response struct {
-	Fkey_Branch_Id      Table_branches   `json:"Branch_Id"`
-	Column_Subject_Id   CustomNullInt    `json:"Subject_Id"`
-	Column_Subject_Name CustomNullString `json:"Subject_Name"`
-}
-
-var Map_subjects = map[string]Column{
-
-	"Branch_Id": {
-		ColumnName: "Branch_Id",
-		DataType:   "CustomNullInt",
-		NotNull:    true,
-		pgType:     "integer",
-	},
-
-	"Subject_Id": {
-		ColumnName: "Subject_Id",
-		DataType:   "CustomNullInt",
-		NotNull:    true,
-		pgType:     "integer",
-	},
-
-	"Subject_Name": {
-		ColumnName: "Subject_Name",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-	},
+type Login_Output struct {
+	Username CustomNullString `json:"username"`
+	Password CustomNullString `json:"password"`
+	Role     CustomNullString `json:"role"`
 }

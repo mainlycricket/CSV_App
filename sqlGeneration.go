@@ -248,6 +248,18 @@ func writeTableRows(filePath string, table *Table, writer *bufio.Writer, channel
 				return
 			}
 
+			if column.Hash && val != nil && (column.DataType == "text" || column.DataType == "text[]") {
+				hashedVal, err := hashText(val, column.DataType)
+
+				if err != nil {
+					errorMessage := fmt.Sprintf("error in row no. %d in %s column of %s table: %v", rowIdx, columnName, tableName, err)
+					mainError = errors.New(errorMessage)
+					return
+				}
+
+				val = hashedVal
+			}
+
 			str := templateValue(val, column.DataType)
 
 			if len(column.ForeignField) > 0 && str != "NULL" {

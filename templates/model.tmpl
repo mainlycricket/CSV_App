@@ -1,5 +1,12 @@
 package main
 
+{{ range $table := . }}
+{{ if .IsAuthTable }}
+import "github.com/golang-jwt/jwt/v5"
+{{ break }}
+{{ end }}
+{{- end -}}
+
 type Column struct {
 	ColumnName    string
 	DataType      string
@@ -12,41 +19,87 @@ type Column struct {
 	pgType        string
 }
 
-{{ range $tableName, $table := . }}
-type Table_{{ $tableName }} struct {
-    {{- if eq (len $table.PrimaryKey) 0 -}}
+{{ range $table := . }}
+
+{{- if .IsAuthTable -}}
+    {{ template "TableStruct" $table }}
+    {{ template "LoginStructs" $table }}
+{{- else -}}
+    {{ template "TableStruct" $table }}
+    {{ template "TableResponse" $table }}
+    {{ template "TableMap" $table }}
+{{- end -}}
+
+{{- end -}}
+
+{{- define "TableStruct" -}}
+type Table_{{ .TableName }} struct {
+    {{- if eq (len .PrimaryKey) 0 -}}
         ID__ CustomNullInt `json:"__ID"`;
     {{- end -}}
 
-    {{- range $columnName, $column := $table.Columns -}}
-	    Column_{{ $columnName }} {{ getDbType $column.DataType }} `json:"{{ $columnName }}"`;
+    {{- range $column := .Columns -}}
+	    Column_{{ $column.ColumnName }} {{ getDbType $column.DataType }} `json:"{{ $column.ColumnName }}"`;
     {{- end -}}
 }
+{{- end -}}
 
-type Table_ {{- $tableName -}} _response struct {
-    {{- if eq (len $table.PrimaryKey) 0 -}}
+{{ define "TableResponse" }}
+type Table_ {{- .TableName -}} _response struct {
+    {{- if eq (len .PrimaryKey) 0 -}}
     ID__ CustomNullInt `json:"__ID"`;
     {{- end -}}
 
-    {{- range $columnName, $column := $table.Columns -}}
+    {{- range $column := .Columns -}}
         {{- if $column.ForeignTable -}}
-            Fkey_{{ $columnName }} Table_{{ $column.ForeignTable }} `json:"{{ $columnName }}"`;
+            Fkey_{{ $column.ColumnName }} Table_{{ $column.ForeignTable }} `json:"{{ $column.ColumnName }}"`;
         {{- else -}}
-            Column_{{ $columnName }} {{ getDbType $column.DataType }} `json:"{{ $columnName }}"`;
+            Column_{{ $column.ColumnName }} {{ getDbType $column.DataType }} `json:"{{ $column.ColumnName }}"`;
         {{- end -}}
     {{- end -}}
 }
+{{ end }}
 
-var Map_ {{- $tableName -}} = map[string]Column {
-{{ range $columnName, $column := $table.Columns }}
-    "{{ $columnName }}" : {  
-            ColumnName: " {{- $columnName -}} ",
-            DataType: " {{- getDbType $column.DataType -}} ",
-            NotNull: {{ $column.NotNull -}},
-            pgType: " {{- $column.DataType -}} ",
+{{ define "TableMap" }}
+var Map_ {{- .TableName -}} = map[string]Column {
+{{ range $column := .Columns }}
+    "{{ $column.ColumnName }}" : {  
+        ColumnName: " {{- $column.ColumnName -}} ",
+        DataType: " {{- getDbType $column.DataType -}} ",
+        NotNull: {{ $column.NotNull -}},
+        pgType: " {{- $column.DataType -}} ",
     },
-
 {{ end }}
 }
+{{ end }}
 
-{{ end -}}
+{{ define "LoginStructs" }}
+type CustomJwtClaims struct {
+	Username string `json:"username"`;
+    {{ range $column := .Columns }}
+    {{- if eq $column.ColumnName "role" -}}
+    Role     string `json:"role"`;
+    {{- else if eq $column.ColumnName "orgId" -}}
+    OrgId    string `json:"orgId"`;
+    {{- end -}}
+    {{- end -}}
+	jwt.RegisteredClaims
+}
+
+type Login_Input struct {
+	Username CustomNullString `json:"username"`
+	Password CustomNullString `json:"password"`
+}
+
+type Login_Output struct {
+	Username CustomNullString `json:"username"`;
+	Password CustomNullString `json:"password"`;
+    {{- range $column := .Columns -}}
+    {{- if eq $column.ColumnName "role" -}}
+    Role     CustomNullString `json:"role"`;
+    {{- else if eq $column.ColumnName "orgId" -}}
+    OrgId    CustomNullString `json:"orgId"`;
+    {{- end -}}
+    {{- end -}}
+}
+{{ end }}

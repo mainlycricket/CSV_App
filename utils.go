@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var basicTypes = map[string]interface{}{
@@ -685,6 +687,86 @@ func writeFile(filePath string, buffers ...*bytes.Buffer) error {
 		if _, err := fp.Write(buffer.Bytes()); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func hashText(val any, datatype string) (any, error) {
+	if datatype == "text" {
+		str, ok := val.(string)
+
+		if !ok {
+			return nil, errors.New("failed to typecast to text")
+		}
+
+		hashedVal, err := hashPassword(str)
+		if err != nil {
+			return nil, fmt.Errorf("error while hashing %s: %v", str, err)
+		}
+
+		return hashedVal, nil
+	}
+
+	if datatype == "text[]" {
+		arr, ok := val.([]any)
+		if !ok {
+			return nil, errors.New("failed to typecast to text[]")
+		}
+
+		for idx, item := range arr {
+			str, ok := item.(string)
+
+			if !ok {
+				return nil, fmt.Errorf("failed to typecast item no. %d to text", (idx + 1))
+			}
+
+			hashedVal, err := hashPassword(str)
+			if err != nil {
+				return nil, fmt.Errorf("error while hashing %s: %v", str, err)
+			}
+
+			arr[idx] = hashedVal
+		}
+
+		return arr, nil
+	}
+
+	return nil, errors.New("invalid datatype")
+}
+
+func hashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(hashedPassword), nil
+}
+
+func writeJsonFile(filepath string, data any) error {
+	jsonData, err := json.Marshal(&data)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filepath, jsonData, os.ModePerm)
+
+	return err
+}
+
+func readJsonFile(filePath string, ptr any) error {
+	schema, err := os.ReadFile(filePath)
+
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(schema, ptr)
+
+	if err != nil {
+		return err
 	}
 
 	return nil

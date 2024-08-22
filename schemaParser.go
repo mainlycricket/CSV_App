@@ -38,6 +38,11 @@ func generateInititalSchema() error {
 
 	csvFiles := make(map[string]bool, 5)
 
+	appConfig := AppCongif{
+		SchemaPath:   filepath.Join(dataPath, "schema.json"),
+		TablesConfig: make(map[string]TableAuthConfig, 5),
+	}
+
 	for _, file := range dirList {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".csv") {
 			continue
@@ -55,6 +60,7 @@ func generateInititalSchema() error {
 			return errors.New(message)
 		}
 
+		appConfig.TablesConfig[tableName] = TableAuthConfig{}
 		csvFiles[tableName] = true
 		mutex.Lock()
 		tablesCount += 1
@@ -89,19 +95,12 @@ func generateInititalSchema() error {
 
 	dbSchema.setForeignKeys(primaryKeys)
 
-	jsonSchema, err := json.Marshal(&dbSchema)
-	if err != nil {
+	if err := writeJsonFile(appConfig.SchemaPath, dbSchema); err != nil {
 		return err
 	}
 
-	jsonFileName := filepath.Join(dataPath, "schema.json")
-	err = os.WriteFile(jsonFileName, jsonSchema, os.ModePerm)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	err = writeJsonFile(filepath.Join(dataPath, "appConfig.json"), appConfig)
+	return err
 }
 
 func (dbSchema *DB) setForeignKeys(primaryKeys map[string]string) {
@@ -400,32 +399,6 @@ func validateAgainstExistingType(value, datatype string) bool {
 
 	_, ok := validateValueByType(value, datatype)
 	return ok
-}
-
-func readSchema() (DB, error) {
-	var dbSchema DB
-
-	BasePath, err := os.Getwd()
-
-	if err != nil {
-		return dbSchema, err
-	}
-
-	jsonFile := filepath.Join(BasePath, "data", "schema.json")
-
-	schema, err := os.ReadFile(jsonFile)
-
-	if err != nil {
-		return dbSchema, err
-	}
-
-	err = json.Unmarshal(schema, &dbSchema)
-
-	if err != nil {
-		return dbSchema, err
-	}
-
-	return dbSchema, nil
 }
 
 func (dbSchema *DB) validateSchema() error {

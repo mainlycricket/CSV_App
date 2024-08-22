@@ -1,0 +1,93 @@
+{
+  "schemaPath": "/home/tushar/Desktop/go_tutorial/projects/CSV_App/data/schema.json",
+  "authTable": "login",
+  "userField": "",
+  "passwordField": "",
+  "orgField": "",
+  "tablesConfig": {
+    "TypeTest": {
+      "userField": "",
+      "orgField": "",
+      "readAuth": {
+        "basicAuth": false,
+        "allowedRoles": null,
+        "specialRoles": null
+      },
+      "writeAuth": {
+        "basicAuth": false,
+        "allowedRoles": null,
+        "specialRoles": null
+      }
+    },
+    "branches": {
+      "userField": "",
+      "orgField": "",
+      "readAuth": {
+        "basicAuth": false,
+        "allowedRoles": null,
+        "specialRoles": null
+      },
+      "writeAuth": {
+        "basicAuth": true,
+        "allowedRoles": ["admin"],
+        "specialRoles": null
+      }
+    },
+    "courses": {
+      "userField": "",
+      "orgField": "",
+      "readAuth": {
+        "basicAuth": false,
+        "allowedRoles": null,
+        "specialRoles": null
+      },
+      "writeAuth": {
+        "basicAuth": true,
+        "allowedRoles": ["admin"],
+        "specialRoles": null
+      }
+    },
+    "login": {
+      "userField": "",
+      "orgField": "",
+      "readAuth": {
+        "basicAuth": false,
+        "allowedRoles": null,
+        "specialRoles": null
+      },
+      "writeAuth": {
+        "basicAuth": false,
+        "allowedRoles": null,
+        "specialRoles": null
+      }
+    },
+    "students": {
+      "userField": "userField",
+      "orgField": "orgField",
+      "readAuth": {
+        "basicAuth": false,
+        "allowedRoles": null,
+        "specialRoles": null
+      },
+      "writeAuth": {
+        "basicAuth": true,
+        "allowedRoles": ["admin", "teacher"],
+        "specialRoles": ["admin"]
+      }
+    },
+    "subjects": {
+      "userField": "",
+      "orgField": "",
+      "readAuth": {
+        "basicAuth": false,
+        "allowedRoles": null,
+        "specialRoles": null
+      },
+      "writeAuth": {
+        "basicAuth": true,
+        "allowedRoles": ["admin"],
+        "specialRoles": null
+      }
+    }
+  }
+}

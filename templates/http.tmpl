@@ -2,10 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
+	"slices"
+	"time"
 )
 
 type ApiResponse struct {
@@ -28,13 +31,20 @@ func getJsonResponse(success bool, message string, data any) []byte {
 }
 
 func startServer() *http.Server {
-	{{ range $tableName, $table := . }}
-		// {{ $tableName }} routes
-		http.HandleFunc("POST /{{- $tableName -}}", api_create_ {{- $tableName -}})
-		http.HandleFunc("GET /{{- $tableName -}}", api_getAll_ {{- $tableName -}})
-		http.HandleFunc("GET /{{- $tableName -}}ByPK", api_getByPk_ {{- $tableName -}})
-		http.HandleFunc("PUT /{{- $tableName -}}", api_update_ {{- $tableName -}})
-		http.HandleFunc("DELETE /{{- $tableName -}}", api_delete_ {{- $tableName -}})
+	{{ range $table := . }}
+		{{ if .IsAuthTable }}
+		// AUTH routes
+		http.HandleFunc("POST /__auth/register", api_create_ {{- .TableName -}})
+		http.HandleFunc("POST /__auth/login", api_login_user)
+		http.HandleFunc("GET /__auth/logout", api_logout_user)
+		{{ else }}
+		// {{ .TableName }} routes
+		http.HandleFunc("POST /{{- .TableName -}}", api_create_ {{- .TableName -}})
+		http.HandleFunc("GET /{{- .TableName -}}", api_getAll_ {{- .TableName -}})
+		http.HandleFunc("GET /{{- .TableName -}}ByPK", api_getByPk_ {{- .TableName -}})
+		http.HandleFunc("PUT /{{- .TableName -}}", api_update_ {{- .TableName -}})
+		http.HandleFunc("DELETE /{{- .TableName -}}", api_delete_ {{- .TableName -}})
+		{{ end }}
 	{{ end }}
 
 	s := &http.Server{
@@ -44,21 +54,60 @@ func startServer() *http.Server {
 	return s
 }
 
-{{ range $tableName, $table := . }}
-
-	// {{ $tableName }} handler functions
+{{ range $table := . }}
+	{{- if .IsAuthTable -}}
+	// AUTH handler functions
+	{{ template "create" $table }}
+	{{ template "login" $table }}
+	{{ template "logout" $table }}
+	{{ else }}
+	// {{ .TableName }} handler functions
 	{{ template "create" $table }}
 	{{ template "readAll" $table }}
 	{{ template "readByPK" $table }}
 	{{ template "update" $table }}
 	{{ template "delete" $table }}
+	{{ end }}
 {{ end }}
 
 {{ define "create" }}
 func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	{{- $userField := .TableAuth.UserField -}}
+	{{- $orgField := .TableAuth.OrgField -}}
+
+	{{ if .TableAuth.WriteAuth.BasicAuth }}
+		{{- if or $userField $orgField -}} 
+			{{- printf "\n\n claims" -}}
+		{{- else -}}
+			{{- printf "\n\n _" -}}
+		{{- end -}}
+
+		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.WriteAuth.AllowedRoles -}})
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+			w.Write(getJsonResponse(false, "unauthorized request", nil))
+			return
+		}
+	{{ end }}
+
 	var item Table_ {{- .TableName }}
+
+	{{ if and .TableAuth.WriteAuth.AllowedRoles (or $userField $orgField) }}
+		specialRoles := {{ printf "%#v" .TableAuth.WriteAuth.SpecialRoles }}
+
+		if !slices.Contains(specialRoles, claims["role"].(string) ) {
+			{{- if $userField -}}
+				item.Column_ {{- $userField -}} = claims["username"].(string);
+			{{- end -}}
+
+			{{- if $orgField -}}
+				item.Column_ {{- $orgField -}} = claims["orgId"].(string);
+			{{- end -}}
+		}
+	{{ end }}
 
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		message := fmt.Sprintf("error while reading request body: %v", err)
@@ -87,7 +136,42 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	{{- $userField := .TableAuth.UserField -}}
+	{{- $orgField := .TableAuth.OrgField -}}
+
+	{{ if .TableAuth.ReadAuth.BasicAuth }}
+		{{- if or $userField $orgField -}} 
+			{{- printf "\n\n claims" -}}
+		{{- else -}}
+			{{- printf "\n\n _" -}}
+		{{- end -}}
+
+		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.ReadAuth.AllowedRoles -}})
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+			w.Write(getJsonResponse(false, "unauthorized request", nil))
+			return
+		}
+	{{ end }}
+
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
+
+	{{ if and .TableAuth.ReadAuth.AllowedRoles (or $userField $orgField) }}
+		specialRoles := {{ printf "%#v" .TableAuth.ReadAuth.SpecialRoles }}
+
+		if !slices.Contains(specialRoles, claims["role"].(string) ) {
+			{{ if $userField }}
+				username := claims["username"].(string)
+				queryValues["{{ $userField }}"] = []string{username}
+			{{ end }}
+
+			{{ if $orgField }}
+				orgId := claims["orgId"].(string)
+				queryValues["{{ $orgField }}"] = []string{orgId}
+			{{ end }}
+		}
+	{{ end }}
 
 	if err != nil {
 		message := fmt.Sprintf("error while parsing request query: %v", err)
@@ -131,6 +215,25 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	{{- $userField := .TableAuth.UserField -}}
+	{{- $orgField := .TableAuth.OrgField -}}
+
+	{{ if .TableAuth.ReadAuth.BasicAuth }}
+		{{- if or $userField $orgField -}} 
+			{{- printf "\n\n claims" -}}
+		{{- else -}}
+			{{- printf "\n\n _" -}}
+		{{- end -}}
+
+		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.ReadAuth.AllowedRoles -}})
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+			w.Write(getJsonResponse(false, "unauthorized request", nil))
+			return
+		}
+	{{ end }}
+
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
@@ -144,12 +247,28 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := getPkParam(queryValues, "{{- getPkType . -}}")
 	if len(id) == 0 {
-		message := fmt.Sprintf("missing id param in request query")
+		message := "missing id param in request query"
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	{{ if and .TableAuth.ReadAuth.AllowedRoles (or $userField $orgField) }}
+		specialRoles := {{ printf "%#v" .TableAuth.ReadAuth.SpecialRoles }}
+
+		if !slices.Contains(specialRoles, claims["role"].(string) ) {
+			{{ if $userField }}
+				username := claims["username"].(string)
+				ctx = context.WithValue(ctx, "{{ $userField }}", username)
+			{{ end }}
+
+			{{ if $orgField }}
+				orgId := claims["orgId"].(string)
+				ctx = context.WithValue(ctx, "{{ $orgField }}", orgId)
+			{{ end }}
+		}
+	{{ end }}
 
 	data, err := db_read_ {{- .TableName -}} _ByPK (ctx, id)
 
@@ -169,6 +288,25 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	{{- $userField := .TableAuth.UserField -}}
+	{{- $orgField := .TableAuth.OrgField -}}
+
+	{{ if .TableAuth.WriteAuth.BasicAuth }}
+		{{- if or $userField $orgField -}} 
+			{{- printf "\n\n claims" -}}
+		{{- else -}}
+			{{- printf "\n\n _" -}}
+		{{- end -}}
+
+		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.WriteAuth.AllowedRoles -}})
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+			w.Write(getJsonResponse(false, "unauthorized request", nil))
+			return
+		}
+	{{ end }}
+
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
@@ -182,7 +320,7 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := getPkParam(queryValues, "{{- getPkType . -}}")
 	if len(id) == 0 {
-		message := fmt.Sprintf("missing id param in request query")
+		message := "missing id param in request query"
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
@@ -190,6 +328,24 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	}
 
 	var item Table_ {{- .TableName }}
+
+	{{ if and .TableAuth.WriteAuth.AllowedRoles (or $userField $orgField) }}
+		specialRoles := {{ printf "%#v" .TableAuth.WriteAuth.SpecialRoles }}
+
+		if !slices.Contains(specialRoles, claims["role"].(string) ) {
+			{{- if $userField -}}
+				username := claims["username"].(string)
+				ctx = context.WithValue(ctx, "{{ $userField }}", username)
+				item.Column_ {{- $userField -}} = username;
+			{{- end -}}
+
+			{{- if $orgField -}}
+				orgId := claims["orgId"].(string)
+				ctx = context.WithValue(ctx, "{{ $orgField }}", orgId)
+				item.Column_ {{- $orgField -}} = orgId;
+			{{- end -}}
+		}
+	{{ end }}
 
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		message := fmt.Sprintf("error while reading request body: %v", err)
@@ -215,6 +371,25 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	{{- $userField := .TableAuth.UserField -}}
+	{{- $orgField := .TableAuth.OrgField -}}
+
+	{{ if .TableAuth.WriteAuth.BasicAuth }}
+		{{- if or $userField $orgField -}} 
+			{{- printf "\n\n claims" -}}
+		{{- else -}}
+			{{- printf "\n\n _" -}}
+		{{- end -}}
+
+		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.WriteAuth.AllowedRoles -}})
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+			w.Write(getJsonResponse(false, "unauthorized request", nil))
+			return
+		}
+	{{ end }}
+
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
 	if err != nil {
@@ -228,12 +403,28 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := getPkParam(queryValues, "{{- getPkType . -}}")
 	if len(id) == 0 {
-		message := fmt.Sprintf("missing id param in request query")
+		message := "missing id param in request query"
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	{{ if and .TableAuth.WriteAuth.AllowedRoles (or $userField $orgField) }}
+		specialRoles := {{ printf "%#v" .TableAuth.WriteAuth.SpecialRoles }}
+
+		if !slices.Contains(specialRoles, claims["role"].(string) ) {
+			{{ if $userField }}
+				username := claims["username"].(string)
+				ctx = context.WithValue(ctx, "{{ $userField }}", username)
+			{{ end }}
+
+			{{ if $orgField }}
+				orgId := claims["orgId"].(string)
+				ctx = context.WithValue(ctx, "{{ $orgField }}", orgId)
+			{{ end }}
+		}
+	{{ end }}
 
 	if err := db_delete_ {{- .TableName -}} (ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
@@ -244,5 +435,94 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(getJsonResponse(true, "deleted successfully", nil))
+}
+{{ end }}
+
+{{- define "login" }}
+func api_login_user(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var credentials Login_Input
+
+	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
+		message := fmt.Sprintf("error while reading request body: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	ctx := r.Context()
+
+	user, err := db_auth_login(ctx, &credentials)
+
+	if err != nil {
+		message := fmt.Sprintf("error while logging in: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write(getJsonResponse(false, "login failed!", nil))
+		return
+	}
+
+	if err := comparePassword(credentials.Password.String, user.Password.String); err != nil {
+		message := fmt.Sprintf("error while logging in: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write(getJsonResponse(false, "login failed!", nil))
+		return
+	}
+
+	token, err := getSignedToken(user.Username.String
+	
+	{{- range $column := .Columns -}}
+
+		{{- if eq $column.ColumnName "role" -}}
+			, user.Role.String
+			
+		{{- else if eq $column.ColumnName "orgId" -}}
+			, user.OrgId.String
+		{{- end -}}
+	{{- end -}}
+	)
+
+	if err != nil {
+		message := fmt.Sprintf("error while logging in: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write(getJsonResponse(false, "login failed!", nil))
+		return
+	}
+
+	cookie := &http.Cookie{
+		Name:     "access_token",
+		Value:    token,
+		Expires:  time.Now().Add(30 * 24 * time.Hour), // expires in 30 days
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		Secure:   true,
+	}
+
+	http.SetCookie(w, cookie)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(getJsonResponse(true, "logged in successfully", nil))
+}
+{{ end }}
+
+
+{{- define "logout" }}
+func api_logout_user(w http.ResponseWriter, _ *http.Request) {
+	cookie := &http.Cookie{
+		Name:    "access_token",
+		Value:   "",
+		Expires: time.Now(),
+		Path:    "/",
+	}
+	http.SetCookie(w, cookie)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(getJsonResponse(true, "logged out successfully", nil))
 }
 {{ end }}

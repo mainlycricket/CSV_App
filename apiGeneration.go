@@ -3,9 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -17,7 +15,7 @@ type TemplateTableData struct {
 	PrimaryKey  string
 	Columns     []Column
 	IsAuthTable bool
-	TableAuth   TableAuthConfig
+	TableAuth   TableAuth
 }
 
 type TemplateFnCall struct {
@@ -61,6 +59,8 @@ func (dbSchema *DB) writeAppFiles(appPath string, appConfig *AppCongif) error {
 func (dbSchema *DB) getTemplatesMetaData(basePath, appPath string, appConfig *AppCongif) []TemplateFnCall {
 	slicedTableData := dbSchema.getSlicedTableData(appConfig)
 
+	getOrgFields := func() []string { return appConfig.OrgFields }
+
 	templateData := []TemplateFnCall{
 		// dbUtils
 		{
@@ -72,23 +72,36 @@ func (dbSchema *DB) getTemplatesMetaData(basePath, appPath string, appConfig *Ap
 				"increase":        increase,
 				"decrease":        decrease,
 				"getTableColumns": getTableColumnsFn(slicedTableData),
+				"getOrgFields":    getOrgFields,
+				"capitalize":      capitalize,
 			},
 		},
 
 		// models
 		{
-			filePath:      filepath.Join(appPath, "models.go"),
-			templatePath:  filepath.Join(basePath, "model.tmpl"),
-			templateFuncs: template.FuncMap{"getDbType": getDbType},
-			data:          slicedTableData,
+			filePath:     filepath.Join(appPath, "models.go"),
+			templatePath: filepath.Join(basePath, "model.tmpl"),
+			templateFuncs: template.FuncMap{
+				"getDbType":    getDbType,
+				"getOrgFields": getOrgFields,
+				"capitalize":   capitalize,
+			},
+			data: slicedTableData,
 		},
 
 		// httpUtils
 		{
-			filePath:      filepath.Join(appPath, "httpUtils.go"),
-			templatePath:  filepath.Join(basePath, "http.tmpl"),
-			templateFuncs: template.FuncMap{"getPkType": getPkType},
-			data:          slicedTableData,
+			filePath:     filepath.Join(appPath, "httpUtils.go"),
+			templatePath: filepath.Join(basePath, "http.tmpl"),
+			templateFuncs: template.FuncMap{
+				"getPkType":    getPkType,
+				"HasSuffix":    strings.HasSuffix,
+				"increase":     increase,
+				"decrease":     decrease,
+				"capitalize":   capitalize,
+				"getOrgFields": getOrgFields,
+			},
+			data: slicedTableData,
 		},
 
 		// .env
@@ -105,15 +118,22 @@ func (dbSchema *DB) getTemplatesMetaData(basePath, appPath string, appConfig *Ap
 
 		// utils
 		{
-			filePath:     filepath.Join(appPath, "utils.go"),
-			templatePath: filepath.Join(basePath, "utils.tmpl"),
-			data:         slicedTableData,
+			filePath:      filepath.Join(appPath, "utils.go"),
+			templatePath:  filepath.Join(basePath, "utils.tmpl"),
+			templateFuncs: template.FuncMap{"getOrgFields": getOrgFields},
+			data:          slicedTableData,
 		},
 
 		// main
 		{
 			filePath:     filepath.Join(appPath, "main.go"),
 			templatePath: filepath.Join(basePath, "main.tmpl"),
+		},
+
+		// setup.sh
+		{
+			filePath:     filepath.Join(appPath, "setup.sh"),
+			templatePath: filepath.Join(basePath, "setup.tmpl"),
 		},
 	}
 
@@ -148,33 +168,14 @@ func executeTemplate(filePath, templatePath string, templateData any, templateFu
 
 	defer fp.Close()
 
+	if strings.HasSuffix(filePath, ".sh") {
+		os.Chmod(filePath, 0o755)
+	}
+
 	if err := template.Execute(fp, templateData); err != nil {
 		mainError = err
 		return
 	}
-}
-
-func executeAppCommands(appPath string) error {
-	if err := os.Chdir(appPath); err != nil {
-		log.Fatalf("error while changing directory: %v", err)
-	}
-
-	commands := []string{
-		"go fmt",
-		"go mod init app.com/app",
-		"go mod tidy",
-	}
-
-	for _, command := range commands {
-		arr := strings.Split(command, " ")
-		cmd := exec.Command(arr[0], arr[1:]...)
-		if err := cmd.Run(); err != nil {
-			errorMessage := fmt.Sprintf("error while executing %s command: %v", command, err)
-			return errors.New(errorMessage)
-		}
-	}
-
-	return nil
 }
 
 func getDbType(datatype string) string {
@@ -229,7 +230,7 @@ func (dbSchema *DB) getSlicedTableData(appConfig *AppCongif) []TemplateTableData
 			PrimaryKey:  table.PrimaryKey,
 			Columns:     []Column{},
 			IsAuthTable: table.TableName == appConfig.AuthTable,
-			TableAuth:   appConfig.TablesConfig[table.TableName],
+			TableAuth:   appConfig.TablesAuth[table.TableName],
 		}
 
 		for _, column := range table.Columns {

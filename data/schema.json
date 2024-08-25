@@ -197,7 +197,7 @@
       "columns": {
         "Branch_Id": {
           "columnName": "Branch_Id",
-          "dataType": "integer",
+          "dataType": "text",
           "notNull": true,
           "unique": true,
           "hash": false,
@@ -223,7 +223,7 @@
         },
         "Course_Id": {
           "columnName": "Course_Id",
-          "dataType": "integer",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "hash": false,
@@ -233,6 +233,19 @@
           "default": null,
           "foreignTable": "courses",
           "foreignField": "Course_Id"
+        },
+        "HoD": {
+          "columnName": "HoD",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "login",
+          "foreignField": "username"
         },
         "Teachers": {
           "columnName": "Teachers",
@@ -246,6 +259,78 @@
           "default": null,
           "foreignTable": "",
           "foreignField": ""
+        },
+        "added_by": {
+          "columnName": "added_by",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "login",
+          "foreignField": "username"
+        },
+        "college_id": {
+          "columnName": "college_id",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "college",
+          "foreignField": "college_id"
+        }
+      }
+    },
+    "college": {
+      "tableName": "college",
+      "fileName": "college.csv",
+      "primaryKey": "college_id",
+      "columns": {
+        "college_id": {
+          "columnName": "college_id",
+          "dataType": "text",
+          "notNull": true,
+          "unique": true,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "",
+          "foreignField": ""
+        },
+        "college_name": {
+          "columnName": "college_name",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "",
+          "foreignField": ""
+        },
+        "principal_id": {
+          "columnName": "principal_id",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "login",
+          "foreignField": "username"
         }
       }
     },
@@ -256,7 +341,7 @@
       "columns": {
         "Course_Id": {
           "columnName": "Course_Id",
-          "dataType": "integer",
+          "dataType": "text",
           "notNull": true,
           "unique": true,
           "hash": false,
@@ -271,7 +356,7 @@
           "columnName": "Course_Name",
           "dataType": "text",
           "notNull": true,
-          "unique": true,
+          "unique": false,
           "hash": false,
           "min": "",
           "max": "",
@@ -292,6 +377,32 @@
           "default": null,
           "foreignTable": "",
           "foreignField": ""
+        },
+        "added_by": {
+          "columnName": "added_by",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "login",
+          "foreignField": "username"
+        },
+        "college_id": {
+          "columnName": "college_id",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "college",
+          "foreignField": "college_id"
         }
       }
     },
@@ -300,6 +411,58 @@
       "fileName": "login.csv",
       "primaryKey": "username",
       "columns": {
+        "added_by": {
+          "columnName": "added_by",
+          "dataType": "text",
+          "notNull": false,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "login",
+          "foreignField": "username"
+        },
+        "branch_id": {
+          "columnName": "branch_id",
+          "dataType": "text",
+          "notNull": false,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "",
+          "foreignField": ""
+        },
+        "college_id": {
+          "columnName": "college_id",
+          "dataType": "text",
+          "notNull": false,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "",
+          "foreignField": ""
+        },
+        "course_id": {
+          "columnName": "course_id",
+          "dataType": "text",
+          "notNull": false,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "",
+          "foreignField": ""
+        },
         "password": {
           "columnName": "password",
           "dataType": "text",
@@ -348,7 +511,7 @@
       "columns": {
         "Branch_Id": {
           "columnName": "Branch_Id",
-          "dataType": "integer",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "hash": false,
@@ -361,7 +524,7 @@
         },
         "Course_Id": {
           "columnName": "Course_Id",
-          "dataType": "integer",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "hash": false,
@@ -410,6 +573,32 @@
           "default": null,
           "foreignTable": "",
           "foreignField": ""
+        },
+        "added_by": {
+          "columnName": "added_by",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "login",
+          "foreignField": "username"
+        },
+        "college_id": {
+          "columnName": "college_id",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "college",
+          "foreignField": "college_id"
         }
       }
     },
@@ -420,7 +609,7 @@
       "columns": {
         "Branch_Id": {
           "columnName": "Branch_Id",
-          "dataType": "integer",
+          "dataType": "text",
           "notNull": true,
           "unique": false,
           "hash": false,
@@ -456,6 +645,45 @@
           "default": null,
           "foreignTable": "",
           "foreignField": ""
+        },
+        "added_by": {
+          "columnName": "added_by",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "login",
+          "foreignField": "username"
+        },
+        "college_id": {
+          "columnName": "college_id",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "college",
+          "foreignField": "college_id"
+        },
+        "course_id": {
+          "columnName": "course_id",
+          "dataType": "text",
+          "notNull": true,
+          "unique": false,
+          "hash": false,
+          "min": "",
+          "max": "",
+          "enums": null,
+          "default": null,
+          "foreignTable": "courses",
+          "foreignField": "Course_Id"
         }
       }
     }

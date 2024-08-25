@@ -39,8 +39,8 @@ func generateInititalSchema() error {
 	csvFiles := make(map[string]bool, 5)
 
 	appConfig := AppCongif{
-		SchemaPath:   filepath.Join(dataPath, "schema.json"),
-		TablesConfig: make(map[string]TableAuthConfig, 5),
+		SchemaPath: filepath.Join(dataPath, "schema.json"),
+		TablesAuth: make(map[string]TableAuth, 5),
 	}
 
 	for _, file := range dirList {
@@ -60,7 +60,7 @@ func generateInititalSchema() error {
 			return errors.New(message)
 		}
 
-		appConfig.TablesConfig[tableName] = TableAuthConfig{}
+		appConfig.TablesAuth[tableName] = TableAuth{}
 		csvFiles[tableName] = true
 		mutex.Lock()
 		tablesCount += 1
@@ -441,11 +441,6 @@ func (dbSchema *DB) validateSchema() error {
 			}
 
 			if len(column.ForeignField) > 0 || len(column.ForeignTable) > 0 {
-				if column.ForeignTable == tableName {
-					errorMessage := fmt.Sprintf("column %s in table %s refers to same table", columnName, tableName)
-					return errors.New(errorMessage)
-				}
-
 				referencedTable, ok := dbSchema.Tables[column.ForeignTable]
 
 				if !ok {
@@ -459,7 +454,7 @@ func (dbSchema *DB) validateSchema() error {
 					return errors.New(errorMessage)
 				}
 
-				if referencedTable.PrimaryKey != columnName {
+				if referencedTable.PrimaryKey != referredCol.ColumnName {
 					errorMessage := fmt.Sprintf("referenced column by %s column in %s table isn't primary key", columnName, tableName)
 					return errors.New(errorMessage)
 				}

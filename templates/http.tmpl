@@ -74,14 +74,12 @@ func startServer() *http.Server {
 func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	{{- $userField := .TableAuth.UserField -}}
-	{{- $orgField := .TableAuth.OrgField -}}
-
 	{{ if .TableAuth.WriteAuth.BasicAuth }}
-		{{- if or $userField $orgField -}} 
-			{{- printf "\n\n claims" -}}
+		{{- "\n\n" -}}
+		{{- if len .TableAuth.WriteAuth.Priviliges -}} 
+			{{- "claims" -}}
 		{{- else -}}
-			{{- printf "\n\n _" -}}
+			{{- "_" -}}
 		{{- end -}}
 
 		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.WriteAuth.AllowedRoles -}})
@@ -95,17 +93,20 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	var item Table_ {{- .TableName }}
 
-	{{ if and .TableAuth.WriteAuth.AllowedRoles (or $userField $orgField) }}
-		specialRoles := {{ printf "%#v" .TableAuth.WriteAuth.SpecialRoles }}
+	{{ $userField := .TableAuth.UserField }}
 
-		if !slices.Contains(specialRoles, claims["role"].(string) ) {
-			{{- if $userField -}}
-				item.Column_ {{- $userField -}} = claims["username"].(string);
-			{{- end -}}
+	{{ if len .TableAuth.WriteAuth.Priviliges }}
+		role := claims["role"].(string)
+	{{- end -}}
 
-			{{- if $orgField -}}
-				item.Column_ {{- $orgField -}} = claims["orgId"].(string);
-			{{- end -}}
+	{{ range $field, $roles := .TableAuth.WriteAuth.Priviliges }}
+		if !slices.Contains({{ printf "%#v" $roles }}, role) {
+			{{ if eq $field $userField }}
+				claimValue, _ := claims["username"].(string)
+			{{ else}}
+				claimValue, _ := claims[" {{- capitalize $field -}} "].(string)
+			{{ end }}
+			item.Column_ {{- $field -}}.String = claimValue
 		}
 	{{ end }}
 
@@ -116,6 +117,8 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	{{ template "hashData" .Columns }}
 
 	ctx := r.Context()
 
@@ -136,14 +139,12 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	{{- $userField := .TableAuth.UserField -}}
-	{{- $orgField := .TableAuth.OrgField -}}
-
 	{{ if .TableAuth.ReadAuth.BasicAuth }}
-		{{- if or $userField $orgField -}} 
-			{{- printf "\n\n claims" -}}
+		{{- "\n\n" -}}
+		{{- if .TableAuth.ReadAuth.Priviliges -}} 
+			{{- "claims" -}}
 		{{- else -}}
-			{{- printf "\n\n _" -}}
+			{{- "_" -}}
 		{{- end -}}
 
 		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.ReadAuth.AllowedRoles -}})
@@ -157,19 +158,20 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
-	{{ if and .TableAuth.ReadAuth.AllowedRoles (or $userField $orgField) }}
-		specialRoles := {{ printf "%#v" .TableAuth.ReadAuth.SpecialRoles }}
+	{{ if len .TableAuth.WriteAuth.Priviliges }}
+		role := claims["role"].(string)
+	{{ end }}
 
-		if !slices.Contains(specialRoles, claims["role"].(string) ) {
-			{{ if $userField }}
-				username := claims["username"].(string)
-				queryValues["{{ $userField }}"] = []string{username}
-			{{ end }}
+	{{ $userField := .TableAuth.UserField }}
 
-			{{ if $orgField }}
-				orgId := claims["orgId"].(string)
-				queryValues["{{ $orgField }}"] = []string{orgId}
+	{{ range $field, $roles := .TableAuth.WriteAuth.Priviliges }}
+		if !slices.Contains({{ printf "%#v" $roles }}, role) {
+			{{ if eq $field $userField }}
+				claimValue, _ := claims["username"].(string)
+			{{ else }}
+				claimValue, _ := claims[" {{- capitalize $field -}} "].(string)
 			{{ end }}
+			queryValues["{{ $field }}"] = []string{claimValue}
 		}
 	{{ end }}
 
@@ -215,14 +217,12 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	{{- $userField := .TableAuth.UserField -}}
-	{{- $orgField := .TableAuth.OrgField -}}
-
 	{{ if .TableAuth.ReadAuth.BasicAuth }}
-		{{- if or $userField $orgField -}} 
-			{{- printf "\n\n claims" -}}
+		{{- "\n\n" -}}
+		{{- if .TableAuth.ReadAuth.Priviliges -}} 
+			{{- "claims" -}}
 		{{- else -}}
-			{{- printf "\n\n _" -}}
+			{{- "_" -}}
 		{{- end -}}
 
 		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.ReadAuth.AllowedRoles -}})
@@ -244,7 +244,6 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
 	id := getPkParam(queryValues, "{{- getPkType . -}}")
 	if len(id) == 0 {
 		message := "missing id param in request query"
@@ -254,19 +253,22 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	{{ if and .TableAuth.ReadAuth.AllowedRoles (or $userField $orgField) }}
-		specialRoles := {{ printf "%#v" .TableAuth.ReadAuth.SpecialRoles }}
+	{{ if len .TableAuth.ReadAuth.Priviliges }}
+		role := claims["role"].(string)
+	{{ end }}
 
-		if !slices.Contains(specialRoles, claims["role"].(string) ) {
-			{{ if $userField }}
-				username := claims["username"].(string)
-				ctx = context.WithValue(ctx, "{{ $userField }}", username)
-			{{ end }}
+	ctx := r.Context()
 
-			{{ if $orgField }}
-				orgId := claims["orgId"].(string)
-				ctx = context.WithValue(ctx, "{{ $orgField }}", orgId)
+	{{ $userField := .TableAuth.UserField }}
+
+	{{ range $field, $roles := .TableAuth.ReadAuth.Priviliges }}
+		if !slices.Contains({{ printf "%#v" $roles }}, role) {
+			{{ if eq $field $userField }}
+				claimValue, _ := claims["username"].(string)
+			{{ else }}
+				claimValue, _ := claims[" {{- capitalize $field -}} "].(string)
 			{{ end }}
+			ctx = context.WithValue(ctx, "{{ $field }}", claimValue)
 		}
 	{{ end }}
 
@@ -288,14 +290,12 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	{{- $userField := .TableAuth.UserField -}}
-	{{- $orgField := .TableAuth.OrgField -}}
-
 	{{ if .TableAuth.WriteAuth.BasicAuth }}
-		{{- if or $userField $orgField -}} 
-			{{- printf "\n\n claims" -}}
+		{{- "\n\n" -}}
+		{{- if len .TableAuth.WriteAuth.Priviliges -}} 
+			{{- "claims" -}}
 		{{- else -}}
-			{{- printf "\n\n _" -}}
+			{{- "_" -}}
 		{{- end -}}
 
 		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.WriteAuth.AllowedRoles -}})
@@ -317,7 +317,6 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
 	id := getPkParam(queryValues, "{{- getPkType . -}}")
 	if len(id) == 0 {
 		message := "missing id param in request query"
@@ -329,21 +328,23 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	var item Table_ {{- .TableName }}
 
-	{{ if and .TableAuth.WriteAuth.AllowedRoles (or $userField $orgField) }}
-		specialRoles := {{ printf "%#v" .TableAuth.WriteAuth.SpecialRoles }}
+	{{ if len .TableAuth.WriteAuth.Priviliges }}
+		role := claims["role"].(string)
+	{{ end }}
 
-		if !slices.Contains(specialRoles, claims["role"].(string) ) {
-			{{- if $userField -}}
-				username := claims["username"].(string)
-				ctx = context.WithValue(ctx, "{{ $userField }}", username)
-				item.Column_ {{- $userField -}} = username;
-			{{- end -}}
+	ctx := r.Context()
 
-			{{- if $orgField -}}
-				orgId := claims["orgId"].(string)
-				ctx = context.WithValue(ctx, "{{ $orgField }}", orgId)
-				item.Column_ {{- $orgField -}} = orgId;
-			{{- end -}}
+	{{ $userField := .TableAuth.UserField }}
+
+	{{ range $field, $roles := .TableAuth.WriteAuth.Priviliges }}
+		if !slices.Contains({{ printf "%#v" $roles }}, role) {
+			{{ if eq $field $userField }}
+				claimValue, _ := claims["username"].(string)
+			{{ else }}
+				claimValue, _ := claims[" {{- capitalize $field -}} "].(string)
+			{{ end }}
+			ctx = context.WithValue(ctx, "{{ $field }}", claimValue)
+			item.Column_ {{- $field -}}.String = claimValue
 		}
 	{{ end }}
 
@@ -354,6 +355,8 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	{{ template "hashData" .Columns }}
 
 	if err := db_update_ {{- .TableName -}} (ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
@@ -371,14 +374,12 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	{{- $userField := .TableAuth.UserField -}}
-	{{- $orgField := .TableAuth.OrgField -}}
-
 	{{ if .TableAuth.WriteAuth.BasicAuth }}
-		{{- if or $userField $orgField -}} 
-			{{- printf "\n\n claims" -}}
+		{{- "\n\n" -}}
+		{{- if len .TableAuth.WriteAuth.Priviliges -}} 
+			{{- "claims" -}}
 		{{- else -}}
-			{{- printf "\n\n _" -}}
+			{{- "_" -}}
 		{{- end -}}
 
 		, err := authorizeRequest(r, {{- printf "%#v" .TableAuth.WriteAuth.AllowedRoles -}})
@@ -400,7 +401,6 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
 	id := getPkParam(queryValues, "{{- getPkType . -}}")
 	if len(id) == 0 {
 		message := "missing id param in request query"
@@ -410,19 +410,22 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	{{ if and .TableAuth.WriteAuth.AllowedRoles (or $userField $orgField) }}
-		specialRoles := {{ printf "%#v" .TableAuth.WriteAuth.SpecialRoles }}
+	{{ if len .TableAuth.WriteAuth.Priviliges }}
+		role := claims["role"].(string)
+	{{ end }}
 
-		if !slices.Contains(specialRoles, claims["role"].(string) ) {
-			{{ if $userField }}
-				username := claims["username"].(string)
-				ctx = context.WithValue(ctx, "{{ $userField }}", username)
-			{{ end }}
+	ctx := r.Context()
 
-			{{ if $orgField }}
-				orgId := claims["orgId"].(string)
-				ctx = context.WithValue(ctx, "{{ $orgField }}", orgId)
+	{{ $userField := .TableAuth.UserField }}
+
+	{{ range $field, $roles := .TableAuth.WriteAuth.Priviliges }}
+		if !slices.Contains({{ printf "%#v" $roles }}, role) {
+			{{ if eq $field $userField }}
+				claimValue, _ := claims["username"].(string)
+			{{ else }}
+				claimValue, _ := claims[" {{- capitalize $field -}} "].(string)
 			{{ end }}
+			ctx = context.WithValue(ctx, "{{ $field }}", claimValue)
 		}
 	{{ end }}
 
@@ -464,7 +467,7 @@ func api_login_user(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := comparePassword(credentials.Password.String, user.Password.String); err != nil {
+	if err := comparePassword(credentials.Password, user.Password); err != nil {
 		message := fmt.Sprintf("error while logging in: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -472,16 +475,17 @@ func api_login_user(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := getSignedToken(user.Username.String
+	token, err := getSignedToken(user.Username
 	
 	{{- range $column := .Columns -}}
-
 		{{- if eq $column.ColumnName "role" -}}
-			, user.Role.String
-			
-		{{- else if eq $column.ColumnName "orgId" -}}
-			, user.OrgId.String
+			, user.Role
+			{{- break -}}
 		{{- end -}}
+	{{- end -}}
+
+	{{- range $field := getOrgFields -}}
+		, user. {{- capitalize $field -}} 
 	{{- end -}}
 	)
 
@@ -525,4 +529,58 @@ func api_logout_user(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(getJsonResponse(true, "logged out successfully", nil))
 }
+{{ end }}
+
+{{ define "hashData" }}
+	{{- $hashString := 0 -}}
+	{{- $hashStringArr := 0 -}}
+
+	{{- range $column := . -}}
+		{{- if $column.Hash -}}
+			{{- if HasSuffix $column.DataType "[]" -}}
+				{{- $hashStringArr = increase $hashStringArr -}}
+			{{- else -}}
+				{{- $hashString = increase $hashString -}}
+			{{- end -}}
+		{{- end -}}
+	{{- end -}}
+
+	{{ if or $hashString $hashStringArr }}
+		if err := hashData(
+			{{- if gt $hashString 0 -}}
+				[]*CustomNullString{
+					{{- range $column := . -}}
+						{{- if and $column.Hash (not (HasSuffix $column.DataType "[]")) -}}
+							&item.Column_ {{- $column.ColumnName -}}
+							{{- $hashString = decrease $hashString -}}
+							{{- if $hashString -}} , {{- end -}}
+						{{- end -}}
+					{{- end -}}
+				},
+			{{- else -}}
+				nil,
+			{{- end -}}
+
+			{{- if gt $hashStringArr 0 -}}
+				[][]*CustomNullString{
+					{{- range $column := . -}}
+						{{- if and $column.Hash (HasSuffix $column.DataType "[]") -}}
+							&item.Column_ {{- $column.ColumnName -}}
+							{{- $hashStringArr = decrease $hashStringArr -}}
+							{{- if $hashStringArr -}} , {{- end -}}
+						{{- end -}}
+					{{- end -}}
+				},
+			{{- else -}}
+				nil,
+			{{- end -}}
+		); err != nil {
+			message := fmt.Sprintf("error while hashing fields: %v", err)
+			log.Print(message)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(getJsonResponse(false, message, nil))
+			return
+		}
+	{{ end }}
+
 {{ end }}

@@ -91,7 +91,6 @@ func main() {
 
 		if err := dbSchema.validateSchema(); err != nil {
 			log.Fatalf("Schema Validation Failed: %v", err)
-
 		}
 
 		// TODO
@@ -107,12 +106,6 @@ func main() {
 
 		if err := dbSchema.writeAppFiles(appPath, &appConfig); err != nil {
 			log.Fatalf("error while writing app files: %v", err)
-		}
-
-		fmt.Println("finished writing app files")
-
-		if err := executeAppCommands(appPath); err != nil {
-			log.Fatalf("error while executing commands: %v", err)
 		}
 
 		fmt.Println("app generated")

@@ -34,23 +34,21 @@ type Column struct {
 }
 
 type AppCongif struct {
-	SchemaPath    string                     `json:"schemaPath"`
-	AuthTable     string                     `json:"authTable"`
-	UserField     string                     `json:"userField"`
-	PasswordField string                     `json:"passwordField"`
-	OrgField      string                     `json:"orgField"`
-	TablesConfig  map[string]TableAuthConfig `json:"tablesConfig"`
+	SchemaPath string               `json:"schemaPath"`
+	AuthTable  string               `json:"authTable"`
+	OrgFields  []string             `json:"orgFields"`
+	TablesAuth map[string]TableAuth `json:"tablesAuth"`
 }
 
-type TableAuthConfig struct {
-	UserField string     `json:"userField"`
-	OrgField  string     `json:"orgField"`
-	ReadAuth  AuthConfig `json:"readAuth"`  // GET
-	WriteAuth AuthConfig `json:"writeAuth"` // INSERT, UPDATE, DELETE
+type TableAuth struct {
+	UserField string   `json:"userField"`
+	OrgFields []string `json:"orgFields"`
+	ReadAuth  AuthInfo `json:"readAuth"`  // GET
+	WriteAuth AuthInfo `json:"writeAuth"` // INSERT, UPDATE, DELETE
 }
 
-type AuthConfig struct {
-	BasicAuth    bool     `json:"basicAuth"`
-	AllowedRoles []string `json:"allowedRoles"`
-	SpecialRoles []string `json:"specialRoles"`
+type AuthInfo struct {
+	BasicAuth    bool                `json:"basicAuth"`
+	AllowedRoles []string            `json:"allowedRoles"`
+	Priviliges   map[string][]string `json:"priviliges"`
 }

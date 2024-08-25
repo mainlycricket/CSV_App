@@ -1,5 +1,5 @@
-P:Student Id , N:Student Name , N:Student Father , FN:Course-Id, FN:Branch-Id
-1,Tushar,Ajay,1,1
-2,Akshay,Nand,1,1
-3,Saurabh,Jagganath,1,2
-4,Harsh,Ramesh,1,2
+P:Student Id , N:Student Name , N:Student Father ,FN:college_id,FN:Course Id, FN:Branch-Id,FN:added_by
+1,Tushar,Ajay,college_1,course_1,branch_1,jethalal
+2,Akshay,Nand,college_1,course_1,branch_1,cs_hod
+3,Saurabh,Jagganath,college_1,course_1,branch_2,it_hod
+4,Harsh,Ramesh,college_1,course_1,branch_3,civil_hod

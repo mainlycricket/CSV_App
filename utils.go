@@ -286,7 +286,8 @@ func (column *Column) validateValueByConstraints(value any, insert bool) (any, e
 			if column.values[str] {
 				return nil, errors.New("unique constraint not satisfied")
 			}
-			column.values[str] = true
+			templateVal := templateValue(str, column.DataType)
+			column.values[templateVal] = true
 		}
 	}
 
@@ -770,4 +771,12 @@ func readJsonFile(filePath string, ptr any) error {
 	}
 
 	return nil
+}
+
+func capitalize(text string) string {
+	if len(text) == 0 {
+		return text
+	}
+
+	return strings.ToUpper(string(text[0])) + text[1:]
 }

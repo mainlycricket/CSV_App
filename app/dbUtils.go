@@ -73,9 +73,9 @@ func connectDB() (*sql.DB, error) {
 	return db, nil
 }
 
-// students CRUD
-func db_insert_students(ctx context.Context, item *Table_students) error {
-	stmt, err := db.PrepareContext(ctx, `INSERT INTO "students" ("Branch_Id", "Course_Id", "Student_Father", "Student_Id", "Student_Name") VALUES ($1, $2, $3, $4, $5)`)
+// branches CRUD
+func db_insert_branches(ctx context.Context, item *Table_branches) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "branches" ("Branch_Id", "Branch_Name", "Course_Id", "HoD", "Teachers", "added_by", "college_id") VALUES ($1, $2, $3, $4, $5, $6, $7)`)
 
 	if err != nil {
 		return err
@@ -83,7 +83,453 @@ func db_insert_students(ctx context.Context, item *Table_students) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Course_Id, item.Column_Student_Father, item.Column_Student_Id, item.Column_Student_Name)
+	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, item.Column_HoD, pq.Array(item.Column_Teachers), item.Column_added_by, item.Column_college_id)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func db_readAll_branches(ctx context.Context, clause string, args []any) ([]Table_branches_response, error) {
+	data := []Table_branches_response{}
+
+	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "branches"."Teachers", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "branches" INNER JOIN "courses" ON "branches"."Course_Id" = "courses"."Course_Id" INNER JOIN "login" ON "branches"."HoD" = "login"."username" INNER JOIN "login" ON "branches"."added_by" = "login"."username" INNER JOIN "college" ON "branches"."college_id" = "college"."college_id"`
+
+	query += clause
+
+	preparedQuery, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer preparedQuery.Close()
+
+	rows, err := preparedQuery.QueryContext(ctx, args...)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		item := Table_branches_response{}
+
+		rows.Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Fkey_Course_Id.Column_added_by, &item.Fkey_Course_Id.Column_college_id, &item.Fkey_HoD.Column_added_by, &item.Fkey_HoD.Column_branch_id, &item.Fkey_HoD.Column_college_id, &item.Fkey_HoD.Column_course_id, &item.Fkey_HoD.Column_role, &item.Fkey_HoD.Column_username, pq.Array(&item.Column_Teachers), &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id)
+
+		data = append(data, item)
+	}
+
+	return data, nil
+}
+
+func db_read_branches_ByPK(ctx context.Context, id string) (Table_branches_response, error) {
+	item := Table_branches_response{}
+
+	args := []any{id}
+
+	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "branches"."Teachers", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "branches" INNER JOIN "courses" ON "branches"."Course_Id" = "courses"."Course_Id" INNER JOIN "login" ON "branches"."HoD" = "login"."username" INNER JOIN "login" ON "branches"."added_by" = "login"."username" INNER JOIN "college" ON "branches"."college_id" = "college"."college_id" WHERE "branches"."Branch_Id" = $1`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "branches"."[principal]" = $%d`, len(args))
+	}
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return item, err
+	}
+
+	defer stmt.Close()
+
+	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Fkey_Course_Id.Column_added_by, &item.Fkey_Course_Id.Column_college_id, &item.Fkey_HoD.Column_added_by, &item.Fkey_HoD.Column_branch_id, &item.Fkey_HoD.Column_college_id, &item.Fkey_HoD.Column_course_id, &item.Fkey_HoD.Column_role, &item.Fkey_HoD.Column_username, pq.Array(&item.Column_Teachers), &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id); err != nil {
+		return item, err
+	}
+
+	return item, nil
+}
+
+func db_update_branches(ctx context.Context, id string, item *Table_branches) error {
+	args := []any{item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, item.Column_HoD, pq.Array(item.Column_Teachers), item.Column_added_by, item.Column_college_id, id}
+
+	query := `UPDATE "branches" SET "Branch_Id" = $1, "Branch_Name" = $2, "Course_Id" = $3, "HoD" = $4, "Teachers" = $5, "added_by" = $6, "college_id" = $7 WHERE "Branch_Id" = $8`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "branches"."[principal]" = $%d`, len(args))
+	}
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
+		return errors.New("no row found with provided id")
+	}
+
+	return nil
+}
+
+func db_delete_branches(ctx context.Context, id string) error {
+	args := []any{id}
+
+	query := `DELETE FROM "branches" WHERE "Branch_Id" = $1`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "branches"."[principal]" = $%d`, len(args))
+	}
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
+		return errors.New("no row found with provided id")
+	}
+
+	return nil
+}
+
+// college CRUD
+func db_insert_college(ctx context.Context, item *Table_college) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "college" ("college_id", "college_name", "principal_id") VALUES ($1, $2, $3)`)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, item.Column_college_id, item.Column_college_name, item.Column_principal_id)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func db_readAll_college(ctx context.Context, clause string, args []any) ([]Table_college_response, error) {
+	data := []Table_college_response{}
+
+	query := `SELECT "college"."college_id", "college"."college_name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username" FROM "college" INNER JOIN "login" ON "college"."principal_id" = "login"."username"`
+
+	query += clause
+
+	preparedQuery, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer preparedQuery.Close()
+
+	rows, err := preparedQuery.QueryContext(ctx, args...)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		item := Table_college_response{}
+
+		rows.Scan(&item.Column_college_id, &item.Column_college_name, &item.Fkey_principal_id.Column_added_by, &item.Fkey_principal_id.Column_branch_id, &item.Fkey_principal_id.Column_college_id, &item.Fkey_principal_id.Column_course_id, &item.Fkey_principal_id.Column_role, &item.Fkey_principal_id.Column_username)
+
+		data = append(data, item)
+	}
+
+	return data, nil
+}
+
+func db_read_college_ByPK(ctx context.Context, id string) (Table_college_response, error) {
+	item := Table_college_response{}
+
+	args := []any{id}
+
+	query := `SELECT "college"."college_id", "college"."college_name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username" FROM "college" INNER JOIN "login" ON "college"."principal_id" = "login"."username" WHERE "college"."college_id" = $1`
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return item, err
+	}
+
+	defer stmt.Close()
+
+	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Column_college_id, &item.Column_college_name, &item.Fkey_principal_id.Column_added_by, &item.Fkey_principal_id.Column_branch_id, &item.Fkey_principal_id.Column_college_id, &item.Fkey_principal_id.Column_course_id, &item.Fkey_principal_id.Column_role, &item.Fkey_principal_id.Column_username); err != nil {
+		return item, err
+	}
+
+	return item, nil
+}
+
+func db_update_college(ctx context.Context, id string, item *Table_college) error {
+	args := []any{item.Column_college_id, item.Column_college_name, item.Column_principal_id, id}
+
+	query := `UPDATE "college" SET "college_id" = $1, "college_name" = $2, "principal_id" = $3 WHERE "college_id" = $4`
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
+		return errors.New("no row found with provided id")
+	}
+
+	return nil
+}
+
+func db_delete_college(ctx context.Context, id string) error {
+	args := []any{id}
+
+	query := `DELETE FROM "college" WHERE "college_id" = $1`
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
+		return errors.New("no row found with provided id")
+	}
+
+	return nil
+}
+
+// courses CRUD
+func db_insert_courses(ctx context.Context, item *Table_courses) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "courses" ("Course_Id", "Course_Name", "Lateral_Allowed", "added_by", "college_id") VALUES ($1, $2, $3, $4, $5)`)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, item.Column_Course_Id, item.Column_Course_Name, item.Column_Lateral_Allowed, item.Column_added_by, item.Column_college_id)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func db_readAll_courses(ctx context.Context, clause string, args []any) ([]Table_courses_response, error) {
+	data := []Table_courses_response{}
+
+	query := `SELECT "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "courses" INNER JOIN "login" ON "courses"."added_by" = "login"."username" INNER JOIN "college" ON "courses"."college_id" = "college"."college_id"`
+
+	query += clause
+
+	preparedQuery, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer preparedQuery.Close()
+
+	rows, err := preparedQuery.QueryContext(ctx, args...)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		item := Table_courses_response{}
+
+		rows.Scan(&item.Column_Course_Id, &item.Column_Course_Name, &item.Column_Lateral_Allowed, &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id)
+
+		data = append(data, item)
+	}
+
+	return data, nil
+}
+
+func db_read_courses_ByPK(ctx context.Context, id string) (Table_courses_response, error) {
+	item := Table_courses_response{}
+
+	args := []any{id}
+
+	query := `SELECT "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "courses" INNER JOIN "login" ON "courses"."added_by" = "login"."username" INNER JOIN "college" ON "courses"."college_id" = "college"."college_id" WHERE "courses"."Course_Id" = $1`
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return item, err
+	}
+
+	defer stmt.Close()
+
+	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Column_Course_Id, &item.Column_Course_Name, &item.Column_Lateral_Allowed, &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id); err != nil {
+		return item, err
+	}
+
+	return item, nil
+}
+
+func db_update_courses(ctx context.Context, id string, item *Table_courses) error {
+	args := []any{item.Column_Course_Id, item.Column_Course_Name, item.Column_Lateral_Allowed, item.Column_added_by, item.Column_college_id, id}
+
+	query := `UPDATE "courses" SET "Course_Id" = $1, "Course_Name" = $2, "Lateral_Allowed" = $3, "added_by" = $4, "college_id" = $5 WHERE "Course_Id" = $6`
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
+		return errors.New("no row found with provided id")
+	}
+
+	return nil
+}
+
+func db_delete_courses(ctx context.Context, id string) error {
+	args := []any{id}
+
+	query := `DELETE FROM "courses" WHERE "Course_Id" = $1`
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
+		return errors.New("no row found with provided id")
+	}
+
+	return nil
+}
+
+// AUTH
+func db_insert_login(ctx context.Context, item *Table_login) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "login" ("added_by", "branch_id", "college_id", "course_id", "password", "role", "username") VALUES ($1, $2, $3, $4, $5, $6, $7)`)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, item.Column_added_by, item.Column_branch_id, item.Column_college_id, item.Column_course_id, item.Column_password, item.Column_role, item.Column_username)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func db_auth_login(ctx context.Context, login_data *Login_Input) (Login_Output, error) {
+	stmt, err := db.PrepareContext(ctx, `SELECT "username", "password", "role", "college_id", "course_id", "branch_id" FROM "login" WHERE username = $1`)
+
+	var item Login_Output
+
+	if err != nil {
+	}
+
+	defer stmt.Close()
+
+	err = stmt.QueryRowContext(ctx, login_data.Username).Scan(&item.Username, &item.Password, &item.Role, &item.College_id, &item.Course_id, &item.Branch_id)
+
+	if err != nil {
+		return item, err
+	}
+
+	return item, nil
+}
+
+// students CRUD
+func db_insert_students(ctx context.Context, item *Table_students) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "students" ("Branch_Id", "Course_Id", "Student_Father", "Student_Id", "Student_Name", "added_by", "college_id") VALUES ($1, $2, $3, $4, $5, $6, $7)`)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Course_Id, item.Column_Student_Father, item.Column_Student_Id, item.Column_Student_Name, item.Column_added_by, item.Column_college_id)
 
 	if err != nil {
 		return err
@@ -95,7 +541,7 @@ func db_insert_students(ctx context.Context, item *Table_students) error {
 func db_readAll_students(ctx context.Context, clause string, args []any) ([]Table_students_response, error) {
 	data := []Table_students_response{}
 
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."Teachers", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "students"."Student_Father", "students"."Student_Id", "students"."Student_Name" FROM "students" INNER JOIN "branches" ON "students"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "courses" ON "students"."Course_Id" = "courses"."Course_Id"`
+	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."HoD", "branches"."Teachers", "branches"."added_by", "branches"."college_id", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id", "students"."Student_Father", "students"."Student_Id", "students"."Student_Name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "students" INNER JOIN "branches" ON "students"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "courses" ON "students"."Course_Id" = "courses"."Course_Id" INNER JOIN "login" ON "students"."added_by" = "login"."username" INNER JOIN "college" ON "students"."college_id" = "college"."college_id"`
 
 	query += clause
 
@@ -118,7 +564,7 @@ func db_readAll_students(ctx context.Context, clause string, args []any) ([]Tabl
 	for rows.Next() {
 		item := Table_students_response{}
 
-		rows.Scan(&item.Fkey_Branch_Id.Column_Branch_Id, &item.Fkey_Branch_Id.Column_Branch_Name, &item.Fkey_Branch_Id.Column_Course_Id, pq.Array(&item.Fkey_Branch_Id.Column_Teachers), &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Column_Student_Father, &item.Column_Student_Id, &item.Column_Student_Name)
+		rows.Scan(&item.Fkey_Branch_Id.Column_Branch_Id, &item.Fkey_Branch_Id.Column_Branch_Name, &item.Fkey_Branch_Id.Column_Course_Id, &item.Fkey_Branch_Id.Column_HoD, pq.Array(&item.Fkey_Branch_Id.Column_Teachers), &item.Fkey_Branch_Id.Column_added_by, &item.Fkey_Branch_Id.Column_college_id, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Fkey_Course_Id.Column_added_by, &item.Fkey_Course_Id.Column_college_id, &item.Column_Student_Father, &item.Column_Student_Id, &item.Column_Student_Name, &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id)
 
 		data = append(data, item)
 	}
@@ -131,20 +577,22 @@ func db_read_students_ByPK(ctx context.Context, id string) (Table_students_respo
 
 	args := []any{id}
 
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."Teachers", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "students"."Student_Father", "students"."Student_Id", "students"."Student_Name" FROM "students" INNER JOIN "branches" ON "students"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "courses" ON "students"."Course_Id" = "courses"."Course_Id" WHERE "students"."Student_Id" = $1`
+	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."HoD", "branches"."Teachers", "branches"."added_by", "branches"."college_id", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id", "students"."Student_Father", "students"."Student_Id", "students"."Student_Name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "students" INNER JOIN "branches" ON "students"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "courses" ON "students"."Course_Id" = "courses"."Course_Id" INNER JOIN "login" ON "students"."added_by" = "login"."username" INNER JOIN "college" ON "students"."college_id" = "college"."college_id" WHERE "students"."Student_Id" = $1`
 
-	userVal := ctx.Value("userField")
-	if userVal != nil {
-		value := userVal.(string)
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."userField" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
 	}
 
-	orgVal := ctx.Value("orgField")
-	if orgVal != nil {
-		value := orgVal.(string)
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."orgField" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -155,7 +603,7 @@ func db_read_students_ByPK(ctx context.Context, id string) (Table_students_respo
 
 	defer stmt.Close()
 
-	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Fkey_Branch_Id.Column_Branch_Id, &item.Fkey_Branch_Id.Column_Branch_Name, &item.Fkey_Branch_Id.Column_Course_Id, pq.Array(&item.Fkey_Branch_Id.Column_Teachers), &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Column_Student_Father, &item.Column_Student_Id, &item.Column_Student_Name); err != nil {
+	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Fkey_Branch_Id.Column_Branch_Id, &item.Fkey_Branch_Id.Column_Branch_Name, &item.Fkey_Branch_Id.Column_Course_Id, &item.Fkey_Branch_Id.Column_HoD, pq.Array(&item.Fkey_Branch_Id.Column_Teachers), &item.Fkey_Branch_Id.Column_added_by, &item.Fkey_Branch_Id.Column_college_id, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Fkey_Course_Id.Column_added_by, &item.Fkey_Course_Id.Column_college_id, &item.Column_Student_Father, &item.Column_Student_Id, &item.Column_Student_Name, &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id); err != nil {
 		return item, err
 	}
 
@@ -163,22 +611,24 @@ func db_read_students_ByPK(ctx context.Context, id string) (Table_students_respo
 }
 
 func db_update_students(ctx context.Context, id string, item *Table_students) error {
-	args := []any{item.Column_Branch_Id, item.Column_Course_Id, item.Column_Student_Father, item.Column_Student_Id, item.Column_Student_Name, id}
+	args := []any{item.Column_Branch_Id, item.Column_Course_Id, item.Column_Student_Father, item.Column_Student_Id, item.Column_Student_Name, item.Column_added_by, item.Column_college_id, id}
 
-	query := `UPDATE "students" SET "Branch_Id" = $1, "Course_Id" = $2, "Student_Father" = $3, "Student_Id" = $4, "Student_Name" = $5 WHERE "Student_Id" = $6`
+	query := `UPDATE "students" SET "Branch_Id" = $1, "Course_Id" = $2, "Student_Father" = $3, "Student_Id" = $4, "Student_Name" = $5, "added_by" = $6, "college_id" = $7 WHERE "Student_Id" = $8`
 
-	userVal := ctx.Value("userField")
-	if userVal != nil {
-		value := userVal.(string)
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."userField" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
 	}
 
-	orgVal := ctx.Value("orgField")
-	if orgVal != nil {
-		value := orgVal.(string)
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."orgField" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -207,18 +657,20 @@ func db_delete_students(ctx context.Context, id string) error {
 
 	query := `DELETE FROM "students" WHERE "Student_Id" = $1`
 
-	userVal := ctx.Value("userField")
-	if userVal != nil {
-		value := userVal.(string)
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."userField" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
 	}
 
-	orgVal := ctx.Value("orgField")
-	if orgVal != nil {
-		value := orgVal.(string)
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."orgField" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -244,7 +696,7 @@ func db_delete_students(ctx context.Context, id string) error {
 
 // subjects CRUD
 func db_insert_subjects(ctx context.Context, item *Table_subjects) error {
-	stmt, err := db.PrepareContext(ctx, `INSERT INTO "subjects" ("Branch_Id", "Subject_Id", "Subject_Name") VALUES ($1, $2, $3)`)
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "subjects" ("Branch_Id", "Subject_Id", "Subject_Name", "added_by", "college_id", "course_id") VALUES ($1, $2, $3, $4, $5, $6)`)
 
 	if err != nil {
 		return err
@@ -252,7 +704,7 @@ func db_insert_subjects(ctx context.Context, item *Table_subjects) error {
 
 	defer stmt.Close()
 
-	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Subject_Id, item.Column_Subject_Name)
+	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Subject_Id, item.Column_Subject_Name, item.Column_added_by, item.Column_college_id, item.Column_course_id)
 
 	if err != nil {
 		return err
@@ -264,7 +716,7 @@ func db_insert_subjects(ctx context.Context, item *Table_subjects) error {
 func db_readAll_subjects(ctx context.Context, clause string, args []any) ([]Table_subjects_response, error) {
 	data := []Table_subjects_response{}
 
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."Teachers", "subjects"."Subject_Id", "subjects"."Subject_Name" FROM "subjects" INNER JOIN "branches" ON "subjects"."Branch_Id" = "branches"."Branch_Id"`
+	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."HoD", "branches"."Teachers", "branches"."added_by", "branches"."college_id", "subjects"."Subject_Id", "subjects"."Subject_Name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id" FROM "subjects" INNER JOIN "branches" ON "subjects"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "login" ON "subjects"."added_by" = "login"."username" INNER JOIN "college" ON "subjects"."college_id" = "college"."college_id" INNER JOIN "courses" ON "subjects"."course_id" = "courses"."Course_Id"`
 
 	query += clause
 
@@ -287,7 +739,7 @@ func db_readAll_subjects(ctx context.Context, clause string, args []any) ([]Tabl
 	for rows.Next() {
 		item := Table_subjects_response{}
 
-		rows.Scan(&item.Fkey_Branch_Id.Column_Branch_Id, &item.Fkey_Branch_Id.Column_Branch_Name, &item.Fkey_Branch_Id.Column_Course_Id, pq.Array(&item.Fkey_Branch_Id.Column_Teachers), &item.Column_Subject_Id, &item.Column_Subject_Name)
+		rows.Scan(&item.Fkey_Branch_Id.Column_Branch_Id, &item.Fkey_Branch_Id.Column_Branch_Name, &item.Fkey_Branch_Id.Column_Course_Id, &item.Fkey_Branch_Id.Column_HoD, pq.Array(&item.Fkey_Branch_Id.Column_Teachers), &item.Fkey_Branch_Id.Column_added_by, &item.Fkey_Branch_Id.Column_college_id, &item.Column_Subject_Id, &item.Column_Subject_Name, &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id, &item.Fkey_course_id.Column_Course_Id, &item.Fkey_course_id.Column_Course_Name, &item.Fkey_course_id.Column_Lateral_Allowed, &item.Fkey_course_id.Column_added_by, &item.Fkey_course_id.Column_college_id)
 
 		data = append(data, item)
 	}
@@ -300,7 +752,23 @@ func db_read_subjects_ByPK(ctx context.Context, id string) (Table_subjects_respo
 
 	args := []any{id}
 
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."Teachers", "subjects"."Subject_Id", "subjects"."Subject_Name" FROM "subjects" INNER JOIN "branches" ON "subjects"."Branch_Id" = "branches"."Branch_Id" WHERE "subjects"."Subject_Id" = $1`
+	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."HoD", "branches"."Teachers", "branches"."added_by", "branches"."college_id", "subjects"."Subject_Id", "subjects"."Subject_Name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id" FROM "subjects" INNER JOIN "branches" ON "subjects"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "login" ON "subjects"."added_by" = "login"."username" INNER JOIN "college" ON "subjects"."college_id" = "college"."college_id" INNER JOIN "courses" ON "subjects"."course_id" = "courses"."Course_Id" WHERE "subjects"."Subject_Id" = $1`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+	}
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+	}
 
 	stmt, err := db.PrepareContext(ctx, query)
 
@@ -310,7 +778,7 @@ func db_read_subjects_ByPK(ctx context.Context, id string) (Table_subjects_respo
 
 	defer stmt.Close()
 
-	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Fkey_Branch_Id.Column_Branch_Id, &item.Fkey_Branch_Id.Column_Branch_Name, &item.Fkey_Branch_Id.Column_Course_Id, pq.Array(&item.Fkey_Branch_Id.Column_Teachers), &item.Column_Subject_Id, &item.Column_Subject_Name); err != nil {
+	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Fkey_Branch_Id.Column_Branch_Id, &item.Fkey_Branch_Id.Column_Branch_Name, &item.Fkey_Branch_Id.Column_Course_Id, &item.Fkey_Branch_Id.Column_HoD, pq.Array(&item.Fkey_Branch_Id.Column_Teachers), &item.Fkey_Branch_Id.Column_added_by, &item.Fkey_Branch_Id.Column_college_id, &item.Column_Subject_Id, &item.Column_Subject_Name, &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id, &item.Fkey_course_id.Column_Course_Id, &item.Fkey_course_id.Column_Course_Name, &item.Fkey_course_id.Column_Lateral_Allowed, &item.Fkey_course_id.Column_added_by, &item.Fkey_course_id.Column_college_id); err != nil {
 		return item, err
 	}
 
@@ -318,9 +786,25 @@ func db_read_subjects_ByPK(ctx context.Context, id string) (Table_subjects_respo
 }
 
 func db_update_subjects(ctx context.Context, id string, item *Table_subjects) error {
-	args := []any{item.Column_Branch_Id, item.Column_Subject_Id, item.Column_Subject_Name, id}
+	args := []any{item.Column_Branch_Id, item.Column_Subject_Id, item.Column_Subject_Name, item.Column_added_by, item.Column_college_id, item.Column_course_id, id}
 
-	query := `UPDATE "subjects" SET "Branch_Id" = $1, "Subject_Id" = $2, "Subject_Name" = $3 WHERE "Subject_Id" = $4`
+	query := `UPDATE "subjects" SET "Branch_Id" = $1, "Subject_Id" = $2, "Subject_Name" = $3, "added_by" = $4, "college_id" = $5, "course_id" = $6 WHERE "Subject_Id" = $7`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+	}
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+	}
 
 	stmt, err := db.PrepareContext(ctx, query)
 
@@ -347,6 +831,22 @@ func db_delete_subjects(ctx context.Context, id string) error {
 	args := []any{id}
 
 	query := `DELETE FROM "subjects" WHERE "Subject_Id" = $1`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+	}
+
+	ctxVal = ctx.Value("[principal]")
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+	}
 
 	stmt, err := db.PrepareContext(ctx, query)
 
@@ -494,297 +994,4 @@ func db_delete_TypeTest(ctx context.Context, id string) error {
 	}
 
 	return nil
-}
-
-// branches CRUD
-func db_insert_branches(ctx context.Context, item *Table_branches) error {
-	stmt, err := db.PrepareContext(ctx, `INSERT INTO "branches" ("Branch_Id", "Branch_Name", "Course_Id", "Teachers") VALUES ($1, $2, $3, $4)`)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, pq.Array(item.Column_Teachers))
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func db_readAll_branches(ctx context.Context, clause string, args []any) ([]Table_branches_response, error) {
-	data := []Table_branches_response{}
-
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "branches"."Teachers" FROM "branches" INNER JOIN "courses" ON "branches"."Course_Id" = "courses"."Course_Id"`
-
-	query += clause
-
-	preparedQuery, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return data, err
-	}
-
-	defer preparedQuery.Close()
-
-	rows, err := preparedQuery.QueryContext(ctx, args...)
-
-	if err != nil {
-		return data, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		item := Table_branches_response{}
-
-		rows.Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, pq.Array(&item.Column_Teachers))
-
-		data = append(data, item)
-	}
-
-	return data, nil
-}
-
-func db_read_branches_ByPK(ctx context.Context, id string) (Table_branches_response, error) {
-	item := Table_branches_response{}
-
-	args := []any{id}
-
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "branches"."Teachers" FROM "branches" INNER JOIN "courses" ON "branches"."Course_Id" = "courses"."Course_Id" WHERE "branches"."Branch_Id" = $1`
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return item, err
-	}
-
-	defer stmt.Close()
-
-	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, pq.Array(&item.Column_Teachers)); err != nil {
-		return item, err
-	}
-
-	return item, nil
-}
-
-func db_update_branches(ctx context.Context, id string, item *Table_branches) error {
-	args := []any{item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, pq.Array(item.Column_Teachers), id}
-
-	query := `UPDATE "branches" SET "Branch_Id" = $1, "Branch_Name" = $2, "Course_Id" = $3, "Teachers" = $4 WHERE "Branch_Id" = $5`
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	result, err := stmt.ExecContext(ctx, args...)
-
-	if err != nil {
-		return err
-	}
-
-	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided id")
-	}
-
-	return nil
-}
-
-func db_delete_branches(ctx context.Context, id string) error {
-	args := []any{id}
-
-	query := `DELETE FROM "branches" WHERE "Branch_Id" = $1`
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	result, err := stmt.ExecContext(ctx, args...)
-
-	if err != nil {
-		return err
-	}
-
-	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided id")
-	}
-
-	return nil
-}
-
-// courses CRUD
-func db_insert_courses(ctx context.Context, item *Table_courses) error {
-	stmt, err := db.PrepareContext(ctx, `INSERT INTO "courses" ("Course_Id", "Course_Name", "Lateral_Allowed") VALUES ($1, $2, $3)`)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.ExecContext(ctx, item.Column_Course_Id, item.Column_Course_Name, item.Column_Lateral_Allowed)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func db_readAll_courses(ctx context.Context, clause string, args []any) ([]Table_courses_response, error) {
-	data := []Table_courses_response{}
-
-	query := `SELECT "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed" FROM "courses"`
-
-	query += clause
-
-	preparedQuery, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return data, err
-	}
-
-	defer preparedQuery.Close()
-
-	rows, err := preparedQuery.QueryContext(ctx, args...)
-
-	if err != nil {
-		return data, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		item := Table_courses_response{}
-
-		rows.Scan(&item.Column_Course_Id, &item.Column_Course_Name, &item.Column_Lateral_Allowed)
-
-		data = append(data, item)
-	}
-
-	return data, nil
-}
-
-func db_read_courses_ByPK(ctx context.Context, id string) (Table_courses_response, error) {
-	item := Table_courses_response{}
-
-	args := []any{id}
-
-	query := `SELECT "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed" FROM "courses" WHERE "courses"."Course_Id" = $1`
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return item, err
-	}
-
-	defer stmt.Close()
-
-	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Column_Course_Id, &item.Column_Course_Name, &item.Column_Lateral_Allowed); err != nil {
-		return item, err
-	}
-
-	return item, nil
-}
-
-func db_update_courses(ctx context.Context, id string, item *Table_courses) error {
-	args := []any{item.Column_Course_Id, item.Column_Course_Name, item.Column_Lateral_Allowed, id}
-
-	query := `UPDATE "courses" SET "Course_Id" = $1, "Course_Name" = $2, "Lateral_Allowed" = $3 WHERE "Course_Id" = $4`
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	result, err := stmt.ExecContext(ctx, args...)
-
-	if err != nil {
-		return err
-	}
-
-	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided id")
-	}
-
-	return nil
-}
-
-func db_delete_courses(ctx context.Context, id string) error {
-	args := []any{id}
-
-	query := `DELETE FROM "courses" WHERE "Course_Id" = $1`
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	result, err := stmt.ExecContext(ctx, args...)
-
-	if err != nil {
-		return err
-	}
-
-	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided id")
-	}
-
-	return nil
-}
-
-// AUTH
-func db_insert_login(ctx context.Context, item *Table_login) error {
-	stmt, err := db.PrepareContext(ctx, `INSERT INTO "login" ("password", "role", "username") VALUES ($1, $2, $3)`)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.ExecContext(ctx, item.Column_password, item.Column_role, item.Column_username)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func db_auth_login(ctx context.Context, login_data *Login_Input) (Login_Output, error) {
-	stmt, err := db.PrepareContext(ctx, `SELECT "username", "password", "role" FROM "login" WHERE username = $1`)
-
-	var item Login_Output
-
-	if err != nil {
-		return item, err
-	}
-
-	defer stmt.Close()
-
-	err = stmt.QueryRowContext(ctx, login_data.Username).Scan(&item.Username, &item.Password, &item.Role)
-
-	if err != nil {
-		return item, err
-	}
-
-	return item, nil
 }

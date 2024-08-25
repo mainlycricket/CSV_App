@@ -29,6 +29,10 @@ func getQueryClauseArgs(params url.Values, columnMap map[string]Column, tableNam
 
 	// Conditions
 	for columnName, column := range columnMap {
+		if column.Hash {
+			continue
+		}
+
 		queryArr := params[columnName]
 
 		if len(queryArr) == 0 {
@@ -153,10 +157,28 @@ func comparePassword(password, hashedPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
-func getSignedToken(username, role string) (string, error) {
+func hashData(strings []*CustomNullString, stringArrays [][]*CustomNullString) error {
+	for _, string_ := range strings {
+		hashed, err := hashPassword(string_.String)
+		if err != nil {
+			return err
+		}
+		string_.String = hashed
+	}
+
+	for _, subArr := range stringArrays {
+		if err := hashData(subArr, nil); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getSignedToken(username, role, college_id, course_id, branch_id string) (string, error) {
 
 	claims := CustomJwtClaims{
-		username, role, jwt.RegisteredClaims{
+		username, role, college_id, course_id, branch_id, jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),

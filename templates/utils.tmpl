@@ -1,28 +1,5 @@
 package main
 
-{{- $isAuth := false -}}
-{{- $isRole := false -}}
-{{- $isHash := false -}}
-{{- $isOrg := false -}}
-
-{{ range $table := . }}
-	{{- if .IsAuthTable -}}
-		{{- $isAuth = true -}}
-	{{- end -}}
-
-	{{- range $column := .Columns -}}
-		{{- if and $isAuth (eq $column.ColumnName "role") -}}
-			{{- $isRole = true -}}
-		{{- end -}}
-		{{- if and $isAuth (eq $column.ColumnName "orgId") -}}
-			{{- $isOrg = true -}}
-		{{- end -}}
-		{{- if $column.Hash -}}
-			{{- $isHash = true -}}
-		{{- end -}}
-	{{- end -}}
-{{ end }}
-
 import (
 	"errors"
 	"fmt"
@@ -34,17 +11,8 @@ import (
 	"strings"
 	"time"
 
-	{{- if or $isAuth $isHash -}}
-		{{- "\n" -}}
-	{{- end -}}
-
-	{{- if $isAuth -}}
-		{{- "\n" -}} "github.com/golang-jwt/jwt/v5"
-	{{- end -}}
-
-	{{- if $isAuth -}}
-		{{- "\n" -}} "golang.org/x/crypto/bcrypt"
-	{{- end -}}
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // ?int=1,2,3  // OR
@@ -61,6 +29,10 @@ func getQueryClauseArgs(params url.Values, columnMap map[string]Column, tableNam
 
 	// Conditions
 	for columnName, column := range columnMap {
+		if column.Hash {
+			continue
+		}
+
 		queryArr := params[columnName]
 
 		if len(queryArr) == 0 {
@@ -172,6 +144,25 @@ func getPkParam(params url.Values, datatype string) string {
 	return id
 }
 
+{{- $isAuth := false -}}
+{{- $isRole := false -}}
+{{- $isHash := false -}}
+
+{{ range $table := . }}
+	{{- if .IsAuthTable -}}
+		{{- $isAuth = true -}}
+	{{- end -}}
+
+	{{- range $column := .Columns -}}
+		{{- if and $isAuth (eq $column.ColumnName "role") -}}
+			{{- $isRole = true -}}
+		{{- end -}}
+		{{- if $column.Hash -}}
+			{{- $isHash = true -}}
+		{{- end -}}
+	{{- end -}}
+{{ end }}
+
 {{- if $isHash }}
 func hashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -187,9 +178,27 @@ func comparePassword(password, hashedPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
+func hashData(strings []*CustomNullString, stringArrays [][]*CustomNullString) error {
+	for _, string_ := range strings {
+		hashed, err := hashPassword(string_.String)
+		if err != nil {
+			return err
+		}
+		string_.String = hashed
+	}
+
+	for _, subArr := range stringArrays {
+		if err := hashData(subArr, nil); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 {{ end -}}
 
-{{- if $isAuth -}}
+{{ if $isAuth }}
 
 func getSignedToken(username
 
@@ -197,8 +206,8 @@ func getSignedToken(username
 		, role
 	{{- end -}}
 
-	{{- if $isOrg -}}	
-		, orgId
+	{{- range $orgField := getOrgFields -}}
+		, {{- $orgField -}}
 	{{- end -}}
 
 	{{- " " -}} string) (string, error) {
@@ -210,8 +219,8 @@ func getSignedToken(username
 			role,
 		{{- end -}}
 
-		{{- if $isOrg -}}	
-			orgId,
+		{{- range $orgField := getOrgFields -}}
+			{{- $orgField -}} ,
 		{{- end -}}
 		
 		jwt.RegisteredClaims{

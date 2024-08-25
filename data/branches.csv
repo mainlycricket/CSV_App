@@ -1,4 +1,4 @@
-P:Branch Id, N:Branch Name, NF:Course Id, Teachers
-1,Computer Science,1,"[""HA"",""PC""]"
-2,Information Technology,1,"[""LD"",""RK""]"
-3,Civil Engineering, 1 ,
+P:Branch Id, N:Branch Name, NF:college_id,NF:Course Id, Teachers,NF:added_by,NF:HoD
+branch_1,Computer Science,college_1,course_1,"[""HA"",""PC""]",jethalal,cs_hod
+branch_2,Information Technology,college_1,course_1,"[""LD"",""RK""]",jethalal,it_hod
+branch_3,Civil Engineering,college_1,course_1,,jethalal,civil_hod

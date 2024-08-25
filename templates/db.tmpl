@@ -168,14 +168,23 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 	{{ $tableName := .TableName  }}
 
 	{{- range $column := .Columns -}}
-		{{- if $column.ForeignTable -}}
+		{{- $n = decrease $n -}}
+		
+		{{- if $column.Hash -}}
+			{{- continue -}}
+		{{- else if $column.ForeignTable -}}
 			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
 			{{- $fNum := len $foreignColumns -}}
 
 			{{- range $foreignColumn := $foreignColumns -}}
+				{{- $fNum = decrease $fNum -}}
+
+				{{- if $foreignColumn.Hash -}}
+					{{- continue -}}
+				{{- end -}}
+
 				" {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
 				
-				{{- $fNum = decrease $fNum -}}
 				{{- if gt $fNum 0 -}}
 					{{- ", " -}}
 				{{- end -}}
@@ -185,7 +194,6 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 			" {{- $tableName -}} "." {{- $column.ColumnName -}}"
 		{{- end -}}
 
-		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
 			{{- ", " -}}
 		{{- end -}}
@@ -233,18 +241,25 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 		{{- $n = len .Columns  -}}
 
 		{{- range $column := .Columns -}}
-			{{- if $column.ForeignTable -}}
+			{{- $n = decrease $n -}}
+			
+			{{- if $column.Hash -}}
+				{{- continue -}}
+			{{- else if $column.ForeignTable -}}
 				{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
 				{{- $fNum := len $foreignColumns -}}
 
 				{{- range $foreignColumn := $foreignColumns -}}
-					{{- if HasSuffix $foreignColumn.DataType "[]" -}}
+					{{- $fNum = decrease $fNum -}}
+
+					{{- if $foreignColumn.Hash -}}
+						{{- continue -}}
+					{{- else if HasSuffix $foreignColumn.DataType "[]" -}}
 						pq.Array(&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}} )
 					{{- else -}}
 						&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}}
 					{{- end -}}
 
-					{{- $fNum = decrease $fNum -}}
 					{{- if gt $fNum 0 -}}
 						{{- ", " -}}
 					{{- end -}}
@@ -258,7 +273,6 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 				{{- end -}}
 			{{- end -}}
 
-			{{- $n = decrease $n -}}
 			{{- if gt $n 0 -}}
 				{{- ", " -}}
 			{{- end -}}
@@ -289,14 +303,23 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 	{{- $tableName := .TableName -}}
 
 	{{- range $column := .Columns -}}
-		{{- if $column.ForeignTable -}}
+		{{- $n = decrease $n -}}
+
+		{{- if $column.Hash -}}
+			{{- continue -}}
+		{{- else if $column.ForeignTable -}}
 			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
 			{{- $fNum := len $foreignColumns -}}
 
 			{{- range $foreignColumn := $foreignColumns -}}
+				{{- $fNum = decrease $fNum -}}
+
+				{{- if $foreignColumn.Hash -}}
+					{{- continue -}}
+				{{- end -}}
+
 				" {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
 				
-				{{- $fNum = decrease $fNum -}}
 				{{- if gt $fNum 0 -}}
 					{{- ", " -}}
 				{{- end -}}
@@ -306,7 +329,6 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 			" {{- $tableName -}} "." {{- $column.ColumnName -}}"
 		{{- end -}}
 
-		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
 			{{- ", " -}}
 		{{- end -}}
@@ -333,24 +355,18 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 	
 	{{- " " -}} = $1`
 
-	{{ $userField := .TableAuth.UserField }}
-	{{ $orgField := .TableAuth.OrgField }}
-
-	{{ if $userField }}
-		userVal := ctx.Value("{{ $userField }}")
-		if userVal != nil {
-			value := userVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ .TableName }}"."{{ $userField }}" = $%d`, len(args))
-		}
+	{{ if len .TableAuth.ReadAuth.Priviliges }}
+		var ctxVal any;
 	{{ end }}
 
-	{{ if $orgField }}
-		orgVal := ctx.Value("{{ $orgField }}")
-		if orgVal != nil {
-			value := orgVal.(string)
+	{{ $tableName := .TableName }}
+
+	{{ range $field := .TableAuth.ReadAuth.Priviliges }}
+		ctxVal = ctx.Value("{{ $field }}")
+		if ctxVal != nil {
+			value := ctxVal.(string)
 			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ .TableName }}"."{{ $orgField }}" = $%d`, len(args))
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $field }}" = $%d`, len(args))
 		}
 	{{ end }}
 
@@ -371,18 +387,26 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 	{{- $n := len .Columns -}}
 
 	{{- range $column := .Columns -}}
-		{{- if $column.ForeignTable -}}
+		{{- $n = decrease $n -}}
+
+		{{- if $column.Hash -}}
+			{{- continue -}}
+
+		{{- else if $column.ForeignTable -}}
 			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
 			{{- $fNum := len $foreignColumns -}}
 
 			{{- range $foreignColumn := $foreignColumns -}}
-				{{- if HasSuffix $foreignColumn.DataType "[]" -}}
+				{{- $fNum = decrease $fNum -}}
+
+				{{- if $foreignColumn.Hash -}}
+					{{- continue -}}
+				{{- else if HasSuffix $foreignColumn.DataType "[]" -}}
 					pq.Array(&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}} )
 				{{- else -}}
 					&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}}
 				{{- end -}}
 
-				{{- $fNum = decrease $fNum -}}
 				{{- if gt $fNum 0 -}}
 					{{- ", " -}}
 				{{- end -}}
@@ -396,7 +420,6 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 			{{- end -}}
 		{{- end -}}
 
-		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
 			{{- ", " -}}
 		{{- end -}}
@@ -463,24 +486,18 @@ func db_update_ {{- .TableName -}} (ctx context.Context, id string, item *Table_
 
 	`
 
-	{{ $userField := .TableAuth.UserField }}
-	{{ $orgField := .TableAuth.OrgField }}
-
-	{{ if $userField }}
-		userVal := ctx.Value("{{ $userField }}")
-		if userVal != nil {
-			value := userVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ .TableName }}"."{{ $userField }}" = $%d`, len(args))
-		}
+	{{ if len .TableAuth.WriteAuth.Priviliges }}
+		var ctxVal any;
 	{{ end }}
 
-	{{ if $orgField }}
-		orgVal := ctx.Value("{{ $orgField }}")
-		if orgVal != nil {
-			value := orgVal.(string)
+	{{ $tableName := .TableName }}
+
+	{{ range $field := .TableAuth.WriteAuth.Priviliges }}
+		ctxVal = ctx.Value("{{ $field }}")
+		if ctxVal != nil {
+			value := ctxVal.(string)
 			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ .TableName }}"."{{ $orgField }}" = $%d`, len(args))
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $field }}" = $%d`, len(args))
 		}
 	{{ end }}
 	
@@ -522,24 +539,18 @@ func db_delete_ {{- .TableName -}} (ctx context.Context, id string) error {
 
 	`
 
-	{{ $userField := .TableAuth.UserField }}
-	{{ $orgField := .TableAuth.OrgField }}
-
-	{{ if $userField }}
-		userVal := ctx.Value("{{ $userField }}")
-		if userVal != nil {
-			value := userVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ .TableName }}"."{{ $userField }}" = $%d`, len(args))
-		}
+	{{ if len .TableAuth.WriteAuth.Priviliges }}
+		var ctxVal any;
 	{{ end }}
+	
+	{{ $tableName := .TableName }}
 
-	{{ if $orgField }}
-		orgVal := ctx.Value("{{ $orgField }}")
-		if orgVal != nil {
-			value := orgVal.(string)
+	{{ range $field := .TableAuth.WriteAuth.Priviliges }}
+		ctxVal = ctx.Value("{{ $field }}")
+		if ctxVal != nil {
+			value := ctxVal.(string)
 			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ .TableName }}"."{{ $orgField }}" = $%d`, len(args))
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $field }}" = $%d`, len(args))
 		}
 	{{ end }}
 
@@ -574,9 +585,12 @@ func db_auth_login(ctx context.Context, login_data *Login_Input) (Login_Output, 
 	{{- range $column := .Columns -}}
 		{{- if eq $column.ColumnName "role" -}}
 			, "role"
-		{{- else if eq $column.ColumnName "orgId" -}}
-			, "orgId"
+			{{- break -}}
 		{{- end -}}
+	{{- end -}}
+
+	{{- range $field := getOrgFields -}}
+		, "{{- $field }}"
 	{{- end -}}
 	
 	{{- " " -}} FROM "{{ .TableName }}" WHERE username = $1`)
@@ -584,7 +598,6 @@ func db_auth_login(ctx context.Context, login_data *Login_Input) (Login_Output, 
 	var item Login_Output
 
 	if err != nil {
-		return item, err
 	}
 
 	defer stmt.Close()
@@ -594,9 +607,12 @@ func db_auth_login(ctx context.Context, login_data *Login_Input) (Login_Output, 
 	{{- range $column := .Columns -}}
 		{{- if eq $column.ColumnName "role" -}}
 			, &item.Role
-		{{- else if eq $column.ColumnName "orgId" -}}
-			, &item.OrgId
+			{{- break -}}
 		{{- end -}}
+	{{- end -}}
+
+	{{- range $field := getOrgFields -}}
+		, &item. {{- capitalize $field }}
 	{{- end -}}
 
 	)

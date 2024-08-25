@@ -1,16 +1,12 @@
 package main
 
-{{ range $table := . }}
-{{ if .IsAuthTable }}
 import "github.com/golang-jwt/jwt/v5"
-{{ break }}
-{{ end }}
-{{- end -}}
 
 type Column struct {
 	ColumnName    string
 	DataType      string
 	NotNull       bool
+    Hash          bool
 	minIndividual interface{}
 	maxIndividual interface{}
 	minArrLen     int // 0 indicates unset or non-array type
@@ -21,13 +17,13 @@ type Column struct {
 
 {{ range $table := . }}
 
+{{ template "TableStruct" $table }}
+{{ template "TableMap" $table }}
+
 {{- if .IsAuthTable -}}
-    {{ template "TableStruct" $table }}
     {{ template "LoginStructs" $table }}
 {{- else -}}
-    {{ template "TableStruct" $table }}
     {{ template "TableResponse" $table }}
-    {{ template "TableMap" $table }}
 {{- end -}}
 
 {{- end -}}
@@ -51,7 +47,9 @@ type Table_ {{- .TableName -}} _response struct {
     {{- end -}}
 
     {{- range $column := .Columns -}}
-        {{- if $column.ForeignTable -}}
+        {{- if $column.Hash -}}
+            {{- continue -}}
+        {{- else if $column.ForeignTable -}}
             Fkey_{{ $column.ColumnName }} Table_{{ $column.ForeignTable }} `json:"{{ $column.ColumnName }}"`;
         {{- else -}}
             Column_{{ $column.ColumnName }} {{ getDbType $column.DataType }} `json:"{{ $column.ColumnName }}"`;
@@ -68,38 +66,52 @@ var Map_ {{- .TableName -}} = map[string]Column {
         DataType: " {{- getDbType $column.DataType -}} ",
         NotNull: {{ $column.NotNull -}},
         pgType: " {{- $column.DataType -}} ",
+        Hash: {{- $column.Hash -}},
     },
 {{ end }}
 }
 {{ end }}
 
 {{ define "LoginStructs" }}
+
+{{- $roleExists := false -}}
+
+{{- range $column := .Columns -}}
+    {{- if eq $column.ColumnName "role" -}}
+        {{- $roleExists = true -}}
+    {{- end -}}
+{{- end -}}
+
+
 type CustomJwtClaims struct {
 	Username string `json:"username"`;
-    {{ range $column := .Columns }}
-    {{- if eq $column.ColumnName "role" -}}
-    Role     string `json:"role"`;
-    {{- else if eq $column.ColumnName "orgId" -}}
-    OrgId    string `json:"orgId"`;
+    
+    {{- if $roleExists -}}
+        Role string `json:"role"`;
     {{- end -}}
+
+    {{- range $orgField := getOrgFields -}}
+        {{ capitalize $orgField }} string `json:"{{ $orgField }}"`;
     {{- end -}}
+
 	jwt.RegisteredClaims
 }
 
 type Login_Input struct {
-	Username CustomNullString `json:"username"`
-	Password CustomNullString `json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type Login_Output struct {
-	Username CustomNullString `json:"username"`;
-	Password CustomNullString `json:"password"`;
-    {{- range $column := .Columns -}}
-    {{- if eq $column.ColumnName "role" -}}
-    Role     CustomNullString `json:"role"`;
-    {{- else if eq $column.ColumnName "orgId" -}}
-    OrgId    CustomNullString `json:"orgId"`;
+	Username string `json:"username"`;
+	Password string `json:"password"`;
+    
+    {{- if $roleExists -}}
+        Role string `json:"role"`;
     {{- end -}}
+
+    {{- range $orgField := getOrgFields -}}
+        {{ capitalize $orgField }} string `json:"{{ $orgField }}"`;
     {{- end -}}
 }
 {{ end }}

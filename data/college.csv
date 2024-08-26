@@ -1,2 +1,2 @@
-P:college_id,N:college_name,NF:principal_id
+P:college_id,N:college_name,F:principal_id
 college_1,IIT Delhi,jethalal

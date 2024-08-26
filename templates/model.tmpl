@@ -103,15 +103,17 @@ type Login_Input struct {
 }
 
 type Login_Output struct {
-	Username string `json:"username"`;
-	Password string `json:"password"`;
+	Username CustomNullString `json:"username"`;
+	Password CustomNullString `json:"password"`;
     
     {{- if $roleExists -}}
-        Role string `json:"role"`;
+        Role CustomNullString `json:"role"`;
     {{- end -}}
 
     {{- range $orgField := getOrgFields -}}
-        {{ capitalize $orgField }} string `json:"{{ $orgField }}"`;
+        {{ capitalize $orgField }} CustomNullString `json:"{{ $orgField }}"`;
     {{- end -}}
 }
+
+type ContextKey string
 {{ end }}

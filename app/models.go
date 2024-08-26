@@ -15,85 +15,6 @@ type Column struct {
 	pgType        string
 }
 
-type Table_branches struct {
-	Column_Branch_Id   CustomNullString   `json:"Branch_Id"`
-	Column_Branch_Name CustomNullString   `json:"Branch_Name"`
-	Column_Course_Id   CustomNullString   `json:"Course_Id"`
-	Column_HoD         CustomNullString   `json:"HoD"`
-	Column_Teachers    []CustomNullString `json:"Teachers"`
-	Column_added_by    CustomNullString   `json:"added_by"`
-	Column_college_id  CustomNullString   `json:"college_id"`
-}
-
-var Map_branches = map[string]Column{
-
-	"Branch_Id": {
-		ColumnName: "Branch_Id",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-
-	"Branch_Name": {
-		ColumnName: "Branch_Name",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-
-	"Course_Id": {
-		ColumnName: "Course_Id",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-
-	"HoD": {
-		ColumnName: "HoD",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-
-	"Teachers": {
-		ColumnName: "Teachers",
-		DataType:   "[]CustomNullString",
-		NotNull:    false,
-		pgType:     "text[]",
-		Hash:       false,
-	},
-
-	"added_by": {
-		ColumnName: "added_by",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-
-	"college_id": {
-		ColumnName: "college_id",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-}
-
-type Table_branches_response struct {
-	Column_Branch_Id   CustomNullString   `json:"Branch_Id"`
-	Column_Branch_Name CustomNullString   `json:"Branch_Name"`
-	Fkey_Course_Id     Table_courses      `json:"Course_Id"`
-	Fkey_HoD           Table_login        `json:"HoD"`
-	Column_Teachers    []CustomNullString `json:"Teachers"`
-	Fkey_added_by      Table_login        `json:"added_by"`
-	Fkey_college_id    Table_college      `json:"college_id"`
-}
-
 type Table_college struct {
 	Column_college_id   CustomNullString `json:"college_id"`
 	Column_college_name CustomNullString `json:"college_name"`
@@ -121,7 +42,7 @@ var Map_college = map[string]Column{
 	"principal_id": {
 		ColumnName: "principal_id",
 		DataType:   "CustomNullString",
-		NotNull:    true,
+		NotNull:    false,
 		pgType:     "text",
 		Hash:       false,
 	},
@@ -276,13 +197,15 @@ type Login_Input struct {
 }
 
 type Login_Output struct {
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	Role       string `json:"role"`
-	College_id string `json:"college_id"`
-	Course_id  string `json:"course_id"`
-	Branch_id  string `json:"branch_id"`
+	Username   CustomNullString `json:"username"`
+	Password   CustomNullString `json:"password"`
+	Role       CustomNullString `json:"role"`
+	College_id CustomNullString `json:"college_id"`
+	Course_id  CustomNullString `json:"course_id"`
+	Branch_id  CustomNullString `json:"branch_id"`
 }
+
+type ContextKey string
 
 type Table_students struct {
 	Column_Branch_Id      CustomNullString `json:"Branch_Id"`
@@ -581,4 +504,83 @@ type Table_TypeTest_response struct {
 	Column_String       CustomNullString     `json:"String"`
 	Column_Time         CustomNullTime       `json:"Time"`
 	Column_Time_Arr     []CustomNullTime     `json:"Time_Arr"`
+}
+
+type Table_branches struct {
+	Column_Branch_Id   CustomNullString   `json:"Branch_Id"`
+	Column_Branch_Name CustomNullString   `json:"Branch_Name"`
+	Column_Course_Id   CustomNullString   `json:"Course_Id"`
+	Column_HoD         CustomNullString   `json:"HoD"`
+	Column_Teachers    []CustomNullString `json:"Teachers"`
+	Column_added_by    CustomNullString   `json:"added_by"`
+	Column_college_id  CustomNullString   `json:"college_id"`
+}
+
+var Map_branches = map[string]Column{
+
+	"Branch_Id": {
+		ColumnName: "Branch_Id",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+
+	"Branch_Name": {
+		ColumnName: "Branch_Name",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+
+	"Course_Id": {
+		ColumnName: "Course_Id",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+
+	"HoD": {
+		ColumnName: "HoD",
+		DataType:   "CustomNullString",
+		NotNull:    false,
+		pgType:     "text",
+		Hash:       false,
+	},
+
+	"Teachers": {
+		ColumnName: "Teachers",
+		DataType:   "[]CustomNullString",
+		NotNull:    false,
+		pgType:     "text[]",
+		Hash:       false,
+	},
+
+	"added_by": {
+		ColumnName: "added_by",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+
+	"college_id": {
+		ColumnName: "college_id",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+}
+
+type Table_branches_response struct {
+	Column_Branch_Id   CustomNullString   `json:"Branch_Id"`
+	Column_Branch_Name CustomNullString   `json:"Branch_Name"`
+	Fkey_Course_Id     Table_courses      `json:"Course_Id"`
+	Fkey_HoD           Table_login        `json:"HoD"`
+	Column_Teachers    []CustomNullString `json:"Teachers"`
+	Fkey_added_by      Table_login        `json:"added_by"`
+	Fkey_college_id    Table_college      `json:"college_id"`
 }

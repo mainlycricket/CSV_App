@@ -183,7 +183,7 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 					{{- continue -}}
 				{{- end -}}
 
-				" {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
+				"{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
 				
 				{{- if gt $fNum 0 -}}
 					{{- ", " -}}
@@ -204,9 +204,9 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 
 	{{- range $column := .Columns -}}
 		{{- if $column.ForeignTable -}}
-			{{- " INNER JOIN " -}} "{{- $column.ForeignTable -}}" 
+			{{- " LEFT JOIN " -}} "{{- $column.ForeignTable -}}" AS "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}}"
 			{{- " ON " -}} "{{- $tableName -}} "."  {{- $column.ColumnName -}}"
-			{{- " = " -}} "{{- $column.ForeignTable -}} "."  {{- $column.ForeignField -}}"
+			{{- " = " -}} "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $column.ForeignField -}}"
 		{{- end -}}
 	{{- end -}}
 	`
@@ -318,7 +318,7 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 					{{- continue -}}
 				{{- end -}}
 
-				" {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
+				" {{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
 				
 				{{- if gt $fNum 0 -}}
 					{{- ", " -}}
@@ -339,9 +339,9 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 
 	{{- range $column := .Columns -}}
 		{{- if $column.ForeignTable -}}
-			{{- " INNER JOIN " -}} "{{- $column.ForeignTable -}}" 
+			{{- " LEFT JOIN " -}} "{{- $column.ForeignTable -}}" AS "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}}"
 			{{- " ON " -}} "{{- $tableName -}} "."  {{- $column.ColumnName -}}"
-			{{- " = " -}} "{{- $column.ForeignTable -}} "."  {{- $column.ForeignField -}}"
+			{{- " = " -}} "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "."  {{- $column.ForeignField -}}"
 		{{- end -}}
 	{{- end -}}
 
@@ -361,8 +361,8 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 
 	{{ $tableName := .TableName }}
 
-	{{ range $field := .TableAuth.ReadAuth.Priviliges }}
-		ctxVal = ctx.Value("{{ $field }}")
+	{{ range $field, $_ := .TableAuth.ReadAuth.Priviliges }}
+		ctxVal = ctx.Value(ContextKey("{{ $field }}"))
 		if ctxVal != nil {
 			value := ctxVal.(string)
 			args = append(args, value)
@@ -492,8 +492,8 @@ func db_update_ {{- .TableName -}} (ctx context.Context, id string, item *Table_
 
 	{{ $tableName := .TableName }}
 
-	{{ range $field := .TableAuth.WriteAuth.Priviliges }}
-		ctxVal = ctx.Value("{{ $field }}")
+	{{ range $field, $_ := .TableAuth.WriteAuth.Priviliges }}
+		ctxVal = ctx.Value(ContextKey("{{ $field }}"))
 		if ctxVal != nil {
 			value := ctxVal.(string)
 			args = append(args, value)
@@ -545,8 +545,8 @@ func db_delete_ {{- .TableName -}} (ctx context.Context, id string) error {
 	
 	{{ $tableName := .TableName }}
 
-	{{ range $field := .TableAuth.WriteAuth.Priviliges }}
-		ctxVal = ctx.Value("{{ $field }}")
+	{{ range $field, $_ := .TableAuth.WriteAuth.Priviliges }}
+		ctxVal = ctx.Value(ContextKey("{{ $field }}"))
 		if ctxVal != nil {
 			value := ctxVal.(string)
 			args = append(args, value)

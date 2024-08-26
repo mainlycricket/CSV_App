@@ -237,7 +237,7 @@
         "HoD": {
           "columnName": "HoD",
           "dataType": "text",
-          "notNull": true,
+          "notNull": false,
           "unique": false,
           "hash": false,
           "min": "",
@@ -322,7 +322,7 @@
         "principal_id": {
           "columnName": "principal_id",
           "dataType": "text",
-          "notNull": true,
+          "notNull": false,
           "unique": false,
           "hash": false,
           "min": "",

@@ -73,160 +73,6 @@ func connectDB() (*sql.DB, error) {
 	return db, nil
 }
 
-// branches CRUD
-func db_insert_branches(ctx context.Context, item *Table_branches) error {
-	stmt, err := db.PrepareContext(ctx, `INSERT INTO "branches" ("Branch_Id", "Branch_Name", "Course_Id", "HoD", "Teachers", "added_by", "college_id") VALUES ($1, $2, $3, $4, $5, $6, $7)`)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, item.Column_HoD, pq.Array(item.Column_Teachers), item.Column_added_by, item.Column_college_id)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func db_readAll_branches(ctx context.Context, clause string, args []any) ([]Table_branches_response, error) {
-	data := []Table_branches_response{}
-
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "branches"."Teachers", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "branches" INNER JOIN "courses" ON "branches"."Course_Id" = "courses"."Course_Id" INNER JOIN "login" ON "branches"."HoD" = "login"."username" INNER JOIN "login" ON "branches"."added_by" = "login"."username" INNER JOIN "college" ON "branches"."college_id" = "college"."college_id"`
-
-	query += clause
-
-	preparedQuery, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return data, err
-	}
-
-	defer preparedQuery.Close()
-
-	rows, err := preparedQuery.QueryContext(ctx, args...)
-
-	if err != nil {
-		return data, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		item := Table_branches_response{}
-
-		rows.Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Fkey_Course_Id.Column_added_by, &item.Fkey_Course_Id.Column_college_id, &item.Fkey_HoD.Column_added_by, &item.Fkey_HoD.Column_branch_id, &item.Fkey_HoD.Column_college_id, &item.Fkey_HoD.Column_course_id, &item.Fkey_HoD.Column_role, &item.Fkey_HoD.Column_username, pq.Array(&item.Column_Teachers), &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id)
-
-		data = append(data, item)
-	}
-
-	return data, nil
-}
-
-func db_read_branches_ByPK(ctx context.Context, id string) (Table_branches_response, error) {
-	item := Table_branches_response{}
-
-	args := []any{id}
-
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "branches"."Teachers", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "branches" INNER JOIN "courses" ON "branches"."Course_Id" = "courses"."Course_Id" INNER JOIN "login" ON "branches"."HoD" = "login"."username" INNER JOIN "login" ON "branches"."added_by" = "login"."username" INNER JOIN "college" ON "branches"."college_id" = "college"."college_id" WHERE "branches"."Branch_Id" = $1`
-
-	var ctxVal any
-
-	ctxVal = ctx.Value("[principal]")
-	if ctxVal != nil {
-		value := ctxVal.(string)
-		args = append(args, value)
-		query += fmt.Sprintf(` AND "branches"."[principal]" = $%d`, len(args))
-	}
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return item, err
-	}
-
-	defer stmt.Close()
-
-	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Fkey_Course_Id.Column_added_by, &item.Fkey_Course_Id.Column_college_id, &item.Fkey_HoD.Column_added_by, &item.Fkey_HoD.Column_branch_id, &item.Fkey_HoD.Column_college_id, &item.Fkey_HoD.Column_course_id, &item.Fkey_HoD.Column_role, &item.Fkey_HoD.Column_username, pq.Array(&item.Column_Teachers), &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id); err != nil {
-		return item, err
-	}
-
-	return item, nil
-}
-
-func db_update_branches(ctx context.Context, id string, item *Table_branches) error {
-	args := []any{item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, item.Column_HoD, pq.Array(item.Column_Teachers), item.Column_added_by, item.Column_college_id, id}
-
-	query := `UPDATE "branches" SET "Branch_Id" = $1, "Branch_Name" = $2, "Course_Id" = $3, "HoD" = $4, "Teachers" = $5, "added_by" = $6, "college_id" = $7 WHERE "Branch_Id" = $8`
-
-	var ctxVal any
-
-	ctxVal = ctx.Value("[principal]")
-	if ctxVal != nil {
-		value := ctxVal.(string)
-		args = append(args, value)
-		query += fmt.Sprintf(` AND "branches"."[principal]" = $%d`, len(args))
-	}
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	result, err := stmt.ExecContext(ctx, args...)
-
-	if err != nil {
-		return err
-	}
-
-	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
-		return errors.New("no row found with provided id")
-	}
-
-	return nil
-}
-
-func db_delete_branches(ctx context.Context, id string) error {
-	args := []any{id}
-
-	query := `DELETE FROM "branches" WHERE "Branch_Id" = $1`
-
-	var ctxVal any
-
-	ctxVal = ctx.Value("[principal]")
-	if ctxVal != nil {
-		value := ctxVal.(string)
-		args = append(args, value)
-		query += fmt.Sprintf(` AND "branches"."[principal]" = $%d`, len(args))
-	}
-
-	stmt, err := db.PrepareContext(ctx, query)
-
-	if err != nil {
-		return err
-	}
-
-	defer stmt.Close()
-
-	result, err := stmt.ExecContext(ctx, args...)
-
-	if err != nil {
-		return err
-	}
-
-	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
-		return errors.New("no row found with provided id")
-	}
-
-	return nil
-}
-
 // college CRUD
 func db_insert_college(ctx context.Context, item *Table_college) error {
 	stmt, err := db.PrepareContext(ctx, `INSERT INTO "college" ("college_id", "college_name", "principal_id") VALUES ($1, $2, $3)`)
@@ -249,7 +95,7 @@ func db_insert_college(ctx context.Context, item *Table_college) error {
 func db_readAll_college(ctx context.Context, clause string, args []any) ([]Table_college_response, error) {
 	data := []Table_college_response{}
 
-	query := `SELECT "college"."college_id", "college"."college_name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username" FROM "college" INNER JOIN "login" ON "college"."principal_id" = "login"."username"`
+	query := `SELECT "college"."college_id", "college"."college_name", "principal_id_login"."added_by", "principal_id_login"."branch_id", "principal_id_login"."college_id", "principal_id_login"."course_id", "principal_id_login"."role", "principal_id_login"."username" FROM "college" LEFT JOIN "login" AS "principal_id_login" ON "college"."principal_id" = "principal_id_login"."username"`
 
 	query += clause
 
@@ -285,7 +131,7 @@ func db_read_college_ByPK(ctx context.Context, id string) (Table_college_respons
 
 	args := []any{id}
 
-	query := `SELECT "college"."college_id", "college"."college_name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username" FROM "college" INNER JOIN "login" ON "college"."principal_id" = "login"."username" WHERE "college"."college_id" = $1`
+	query := `SELECT "college"."college_id", "college"."college_name", "principal_id_login"."added_by", "principal_id_login"."branch_id", "principal_id_login"."college_id", "principal_id_login"."course_id", "principal_id_login"."role", "principal_id_login"."username" FROM "college" LEFT JOIN "login" AS "principal_id_login" ON "college"."principal_id" = "principal_id_login"."username" WHERE "college"."college_id" = $1`
 
 	stmt, err := db.PrepareContext(ctx, query)
 
@@ -376,7 +222,7 @@ func db_insert_courses(ctx context.Context, item *Table_courses) error {
 func db_readAll_courses(ctx context.Context, clause string, args []any) ([]Table_courses_response, error) {
 	data := []Table_courses_response{}
 
-	query := `SELECT "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "courses" INNER JOIN "login" ON "courses"."added_by" = "login"."username" INNER JOIN "college" ON "courses"."college_id" = "college"."college_id"`
+	query := `SELECT "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "added_by_login"."added_by", "added_by_login"."branch_id", "added_by_login"."college_id", "added_by_login"."course_id", "added_by_login"."role", "added_by_login"."username", "college_id_college"."college_id", "college_id_college"."college_name", "college_id_college"."principal_id" FROM "courses" LEFT JOIN "login" AS "added_by_login" ON "courses"."added_by" = "added_by_login"."username" LEFT JOIN "college" AS "college_id_college" ON "courses"."college_id" = "college_id_college"."college_id"`
 
 	query += clause
 
@@ -412,7 +258,7 @@ func db_read_courses_ByPK(ctx context.Context, id string) (Table_courses_respons
 
 	args := []any{id}
 
-	query := `SELECT "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "courses" INNER JOIN "login" ON "courses"."added_by" = "login"."username" INNER JOIN "college" ON "courses"."college_id" = "college"."college_id" WHERE "courses"."Course_Id" = $1`
+	query := `SELECT "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "added_by_login"."added_by", "added_by_login"."branch_id", "added_by_login"."college_id", "added_by_login"."course_id", "added_by_login"."role", "added_by_login"."username", "college_id_college"."college_id", "college_id_college"."college_name", "college_id_college"."principal_id" FROM "courses" LEFT JOIN "login" AS "added_by_login" ON "courses"."added_by" = "added_by_login"."username" LEFT JOIN "college" AS "college_id_college" ON "courses"."college_id" = "college_id_college"."college_id" WHERE "courses"."Course_Id" = $1`
 
 	stmt, err := db.PrepareContext(ctx, query)
 
@@ -541,7 +387,7 @@ func db_insert_students(ctx context.Context, item *Table_students) error {
 func db_readAll_students(ctx context.Context, clause string, args []any) ([]Table_students_response, error) {
 	data := []Table_students_response{}
 
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."HoD", "branches"."Teachers", "branches"."added_by", "branches"."college_id", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id", "students"."Student_Father", "students"."Student_Id", "students"."Student_Name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "students" INNER JOIN "branches" ON "students"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "courses" ON "students"."Course_Id" = "courses"."Course_Id" INNER JOIN "login" ON "students"."added_by" = "login"."username" INNER JOIN "college" ON "students"."college_id" = "college"."college_id"`
+	query := `SELECT "Branch_Id_branches"."Branch_Id", "Branch_Id_branches"."Branch_Name", "Branch_Id_branches"."Course_Id", "Branch_Id_branches"."HoD", "Branch_Id_branches"."Teachers", "Branch_Id_branches"."added_by", "Branch_Id_branches"."college_id", "Course_Id_courses"."Course_Id", "Course_Id_courses"."Course_Name", "Course_Id_courses"."Lateral_Allowed", "Course_Id_courses"."added_by", "Course_Id_courses"."college_id", "students"."Student_Father", "students"."Student_Id", "students"."Student_Name", "added_by_login"."added_by", "added_by_login"."branch_id", "added_by_login"."college_id", "added_by_login"."course_id", "added_by_login"."role", "added_by_login"."username", "college_id_college"."college_id", "college_id_college"."college_name", "college_id_college"."principal_id" FROM "students" LEFT JOIN "branches" AS "Branch_Id_branches" ON "students"."Branch_Id" = "Branch_Id_branches"."Branch_Id" LEFT JOIN "courses" AS "Course_Id_courses" ON "students"."Course_Id" = "Course_Id_courses"."Course_Id" LEFT JOIN "login" AS "added_by_login" ON "students"."added_by" = "added_by_login"."username" LEFT JOIN "college" AS "college_id_college" ON "students"."college_id" = "college_id_college"."college_id"`
 
 	query += clause
 
@@ -577,22 +423,29 @@ func db_read_students_ByPK(ctx context.Context, id string) (Table_students_respo
 
 	args := []any{id}
 
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."HoD", "branches"."Teachers", "branches"."added_by", "branches"."college_id", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id", "students"."Student_Father", "students"."Student_Id", "students"."Student_Name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id" FROM "students" INNER JOIN "branches" ON "students"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "courses" ON "students"."Course_Id" = "courses"."Course_Id" INNER JOIN "login" ON "students"."added_by" = "login"."username" INNER JOIN "college" ON "students"."college_id" = "college"."college_id" WHERE "students"."Student_Id" = $1`
+	query := `SELECT "Branch_Id_branches"."Branch_Id", "Branch_Id_branches"."Branch_Name", "Branch_Id_branches"."Course_Id", "Branch_Id_branches"."HoD", "Branch_Id_branches"."Teachers", "Branch_Id_branches"."added_by", "Branch_Id_branches"."college_id", "Course_Id_courses"."Course_Id", "Course_Id_courses"."Course_Name", "Course_Id_courses"."Lateral_Allowed", "Course_Id_courses"."added_by", "Course_Id_courses"."college_id", "students"."Student_Father", "students"."Student_Id", "students"."Student_Name", "added_by_login"."added_by", "added_by_login"."branch_id", "added_by_login"."college_id", "added_by_login"."course_id", "added_by_login"."role", "added_by_login"."username", "college_id_college"."college_id", "college_id_college"."college_name", "college_id_college"."principal_id" FROM "students" LEFT JOIN "branches" AS "Branch_Id_branches" ON "students"."Branch_Id" = "Branch_Id_branches"."Branch_Id" LEFT JOIN "courses" AS "Course_Id_courses" ON "students"."Course_Id" = "Course_Id_courses"."Course_Id" LEFT JOIN "login" AS "added_by_login" ON "students"."added_by" = "added_by_login"."username" LEFT JOIN "college" AS "college_id_college" ON "students"."college_id" = "college_id_college"."college_id" WHERE "students"."Student_Id" = $1`
 
 	var ctxVal any
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Branch_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."Branch_Id" = $%d`, len(args))
 	}
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Course_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."Course_Id" = $%d`, len(args))
+	}
+
+	ctxVal = ctx.Value(ContextKey("added_by"))
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "students"."added_by" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -617,18 +470,18 @@ func db_update_students(ctx context.Context, id string, item *Table_students) er
 
 	var ctxVal any
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Branch_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."Branch_Id" = $%d`, len(args))
 	}
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Course_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."Course_Id" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -659,18 +512,18 @@ func db_delete_students(ctx context.Context, id string) error {
 
 	var ctxVal any
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Branch_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."Branch_Id" = $%d`, len(args))
 	}
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Course_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "students"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "students"."Course_Id" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -716,7 +569,7 @@ func db_insert_subjects(ctx context.Context, item *Table_subjects) error {
 func db_readAll_subjects(ctx context.Context, clause string, args []any) ([]Table_subjects_response, error) {
 	data := []Table_subjects_response{}
 
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."HoD", "branches"."Teachers", "branches"."added_by", "branches"."college_id", "subjects"."Subject_Id", "subjects"."Subject_Name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id" FROM "subjects" INNER JOIN "branches" ON "subjects"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "login" ON "subjects"."added_by" = "login"."username" INNER JOIN "college" ON "subjects"."college_id" = "college"."college_id" INNER JOIN "courses" ON "subjects"."course_id" = "courses"."Course_Id"`
+	query := `SELECT "Branch_Id_branches"."Branch_Id", "Branch_Id_branches"."Branch_Name", "Branch_Id_branches"."Course_Id", "Branch_Id_branches"."HoD", "Branch_Id_branches"."Teachers", "Branch_Id_branches"."added_by", "Branch_Id_branches"."college_id", "subjects"."Subject_Id", "subjects"."Subject_Name", "added_by_login"."added_by", "added_by_login"."branch_id", "added_by_login"."college_id", "added_by_login"."course_id", "added_by_login"."role", "added_by_login"."username", "college_id_college"."college_id", "college_id_college"."college_name", "college_id_college"."principal_id", "course_id_courses"."Course_Id", "course_id_courses"."Course_Name", "course_id_courses"."Lateral_Allowed", "course_id_courses"."added_by", "course_id_courses"."college_id" FROM "subjects" LEFT JOIN "branches" AS "Branch_Id_branches" ON "subjects"."Branch_Id" = "Branch_Id_branches"."Branch_Id" LEFT JOIN "login" AS "added_by_login" ON "subjects"."added_by" = "added_by_login"."username" LEFT JOIN "college" AS "college_id_college" ON "subjects"."college_id" = "college_id_college"."college_id" LEFT JOIN "courses" AS "course_id_courses" ON "subjects"."course_id" = "course_id_courses"."Course_Id"`
 
 	query += clause
 
@@ -752,22 +605,29 @@ func db_read_subjects_ByPK(ctx context.Context, id string) (Table_subjects_respo
 
 	args := []any{id}
 
-	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "branches"."Course_Id", "branches"."HoD", "branches"."Teachers", "branches"."added_by", "branches"."college_id", "subjects"."Subject_Id", "subjects"."Subject_Name", "login"."added_by", "login"."branch_id", "login"."college_id", "login"."course_id", "login"."role", "login"."username", "college"."college_id", "college"."college_name", "college"."principal_id", "courses"."Course_Id", "courses"."Course_Name", "courses"."Lateral_Allowed", "courses"."added_by", "courses"."college_id" FROM "subjects" INNER JOIN "branches" ON "subjects"."Branch_Id" = "branches"."Branch_Id" INNER JOIN "login" ON "subjects"."added_by" = "login"."username" INNER JOIN "college" ON "subjects"."college_id" = "college"."college_id" INNER JOIN "courses" ON "subjects"."course_id" = "courses"."Course_Id" WHERE "subjects"."Subject_Id" = $1`
+	query := `SELECT "Branch_Id_branches"."Branch_Id", "Branch_Id_branches"."Branch_Name", "Branch_Id_branches"."Course_Id", "Branch_Id_branches"."HoD", "Branch_Id_branches"."Teachers", "Branch_Id_branches"."added_by", "Branch_Id_branches"."college_id", "subjects"."Subject_Id", "subjects"."Subject_Name", "added_by_login"."added_by", "added_by_login"."branch_id", "added_by_login"."college_id", "added_by_login"."course_id", "added_by_login"."role", "added_by_login"."username", "college_id_college"."college_id", "college_id_college"."college_name", "college_id_college"."principal_id", "course_id_courses"."Course_Id", "course_id_courses"."Course_Name", "course_id_courses"."Lateral_Allowed", "course_id_courses"."added_by", "course_id_courses"."college_id" FROM "subjects" LEFT JOIN "branches" AS "Branch_Id_branches" ON "subjects"."Branch_Id" = "Branch_Id_branches"."Branch_Id" LEFT JOIN "login" AS "added_by_login" ON "subjects"."added_by" = "added_by_login"."username" LEFT JOIN "college" AS "college_id_college" ON "subjects"."college_id" = "college_id_college"."college_id" LEFT JOIN "courses" AS "course_id_courses" ON "subjects"."course_id" = "course_id_courses"."Course_Id" WHERE "subjects"."Subject_Id" = $1`
 
 	var ctxVal any
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Branch_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "subjects"."Branch_Id" = $%d`, len(args))
 	}
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("added_by"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "subjects"."added_by" = $%d`, len(args))
+	}
+
+	ctxVal = ctx.Value(ContextKey("course_id"))
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "subjects"."course_id" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -792,18 +652,18 @@ func db_update_subjects(ctx context.Context, id string, item *Table_subjects) er
 
 	var ctxVal any
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Branch_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "subjects"."Branch_Id" = $%d`, len(args))
 	}
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("course_id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "subjects"."course_id" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -834,18 +694,18 @@ func db_delete_subjects(ctx context.Context, id string) error {
 
 	var ctxVal any
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("Branch_Id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "subjects"."Branch_Id" = $%d`, len(args))
 	}
 
-	ctxVal = ctx.Value("[principal]")
+	ctxVal = ctx.Value(ContextKey("course_id"))
 	if ctxVal != nil {
 		value := ctxVal.(string)
 		args = append(args, value)
-		query += fmt.Sprintf(` AND "subjects"."[principal]" = $%d`, len(args))
+		query += fmt.Sprintf(` AND "subjects"."course_id" = $%d`, len(args))
 	}
 
 	stmt, err := db.PrepareContext(ctx, query)
@@ -974,6 +834,160 @@ func db_delete_TypeTest(ctx context.Context, id string) error {
 	args := []any{id}
 
 	query := `DELETE FROM "TypeTest" WHERE "__ID" = $1`
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsDeleted, _ := result.RowsAffected(); rowsDeleted == 0 {
+		return errors.New("no row found with provided id")
+	}
+
+	return nil
+}
+
+// branches CRUD
+func db_insert_branches(ctx context.Context, item *Table_branches) error {
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO "branches" ("Branch_Id", "Branch_Name", "Course_Id", "HoD", "Teachers", "added_by", "college_id") VALUES ($1, $2, $3, $4, $5, $6, $7)`)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, item.Column_HoD, pq.Array(item.Column_Teachers), item.Column_added_by, item.Column_college_id)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func db_readAll_branches(ctx context.Context, clause string, args []any) ([]Table_branches_response, error) {
+	data := []Table_branches_response{}
+
+	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "Course_Id_courses"."Course_Id", "Course_Id_courses"."Course_Name", "Course_Id_courses"."Lateral_Allowed", "Course_Id_courses"."added_by", "Course_Id_courses"."college_id", "HoD_login"."added_by", "HoD_login"."branch_id", "HoD_login"."college_id", "HoD_login"."course_id", "HoD_login"."role", "HoD_login"."username", "branches"."Teachers", "added_by_login"."added_by", "added_by_login"."branch_id", "added_by_login"."college_id", "added_by_login"."course_id", "added_by_login"."role", "added_by_login"."username", "college_id_college"."college_id", "college_id_college"."college_name", "college_id_college"."principal_id" FROM "branches" LEFT JOIN "courses" AS "Course_Id_courses" ON "branches"."Course_Id" = "Course_Id_courses"."Course_Id" LEFT JOIN "login" AS "HoD_login" ON "branches"."HoD" = "HoD_login"."username" LEFT JOIN "login" AS "added_by_login" ON "branches"."added_by" = "added_by_login"."username" LEFT JOIN "college" AS "college_id_college" ON "branches"."college_id" = "college_id_college"."college_id"`
+
+	query += clause
+
+	preparedQuery, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer preparedQuery.Close()
+
+	rows, err := preparedQuery.QueryContext(ctx, args...)
+
+	if err != nil {
+		return data, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		item := Table_branches_response{}
+
+		rows.Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Fkey_Course_Id.Column_added_by, &item.Fkey_Course_Id.Column_college_id, &item.Fkey_HoD.Column_added_by, &item.Fkey_HoD.Column_branch_id, &item.Fkey_HoD.Column_college_id, &item.Fkey_HoD.Column_course_id, &item.Fkey_HoD.Column_role, &item.Fkey_HoD.Column_username, pq.Array(&item.Column_Teachers), &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id)
+
+		data = append(data, item)
+	}
+
+	return data, nil
+}
+
+func db_read_branches_ByPK(ctx context.Context, id string) (Table_branches_response, error) {
+	item := Table_branches_response{}
+
+	args := []any{id}
+
+	query := `SELECT "branches"."Branch_Id", "branches"."Branch_Name", "Course_Id_courses"."Course_Id", "Course_Id_courses"."Course_Name", "Course_Id_courses"."Lateral_Allowed", "Course_Id_courses"."added_by", "Course_Id_courses"."college_id", "HoD_login"."added_by", "HoD_login"."branch_id", "HoD_login"."college_id", "HoD_login"."course_id", "HoD_login"."role", "HoD_login"."username", "branches"."Teachers", "added_by_login"."added_by", "added_by_login"."branch_id", "added_by_login"."college_id", "added_by_login"."course_id", "added_by_login"."role", "added_by_login"."username", "college_id_college"."college_id", "college_id_college"."college_name", "college_id_college"."principal_id" FROM "branches" LEFT JOIN "courses" AS "Course_Id_courses" ON "branches"."Course_Id" = "Course_Id_courses"."Course_Id" LEFT JOIN "login" AS "HoD_login" ON "branches"."HoD" = "HoD_login"."username" LEFT JOIN "login" AS "added_by_login" ON "branches"."added_by" = "added_by_login"."username" LEFT JOIN "college" AS "college_id_college" ON "branches"."college_id" = "college_id_college"."college_id" WHERE "branches"."Branch_Id" = $1`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value(ContextKey("Course_Id"))
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "branches"."Course_Id" = $%d`, len(args))
+	}
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return item, err
+	}
+
+	defer stmt.Close()
+
+	if err := stmt.QueryRowContext(ctx, args...).Scan(&item.Column_Branch_Id, &item.Column_Branch_Name, &item.Fkey_Course_Id.Column_Course_Id, &item.Fkey_Course_Id.Column_Course_Name, &item.Fkey_Course_Id.Column_Lateral_Allowed, &item.Fkey_Course_Id.Column_added_by, &item.Fkey_Course_Id.Column_college_id, &item.Fkey_HoD.Column_added_by, &item.Fkey_HoD.Column_branch_id, &item.Fkey_HoD.Column_college_id, &item.Fkey_HoD.Column_course_id, &item.Fkey_HoD.Column_role, &item.Fkey_HoD.Column_username, pq.Array(&item.Column_Teachers), &item.Fkey_added_by.Column_added_by, &item.Fkey_added_by.Column_branch_id, &item.Fkey_added_by.Column_college_id, &item.Fkey_added_by.Column_course_id, &item.Fkey_added_by.Column_role, &item.Fkey_added_by.Column_username, &item.Fkey_college_id.Column_college_id, &item.Fkey_college_id.Column_college_name, &item.Fkey_college_id.Column_principal_id); err != nil {
+		return item, err
+	}
+
+	return item, nil
+}
+
+func db_update_branches(ctx context.Context, id string, item *Table_branches) error {
+	args := []any{item.Column_Branch_Id, item.Column_Branch_Name, item.Column_Course_Id, item.Column_HoD, pq.Array(item.Column_Teachers), item.Column_added_by, item.Column_college_id, id}
+
+	query := `UPDATE "branches" SET "Branch_Id" = $1, "Branch_Name" = $2, "Course_Id" = $3, "HoD" = $4, "Teachers" = $5, "added_by" = $6, "college_id" = $7 WHERE "Branch_Id" = $8`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value(ContextKey("Course_Id"))
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "branches"."Course_Id" = $%d`, len(args))
+	}
+
+	stmt, err := db.PrepareContext(ctx, query)
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
+
+	if err != nil {
+		return err
+	}
+
+	if rowsUpdated, _ := result.RowsAffected(); rowsUpdated == 0 {
+		return errors.New("no row found with provided id")
+	}
+
+	return nil
+}
+
+func db_delete_branches(ctx context.Context, id string) error {
+	args := []any{id}
+
+	query := `DELETE FROM "branches" WHERE "Branch_Id" = $1`
+
+	var ctxVal any
+
+	ctxVal = ctx.Value(ContextKey("Course_Id"))
+	if ctxVal != nil {
+		value := ctxVal.(string)
+		args = append(args, value)
+		query += fmt.Sprintf(` AND "branches"."Course_Id" = $%d`, len(args))
+	}
 
 	stmt, err := db.PrepareContext(ctx, query)
 

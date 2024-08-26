@@ -36,7 +36,7 @@
       }
     },
     "college": {
-      "userField": "added_by",
+      "userField": "",
       "orgFields": null,
       "readAuth": {
         "basicAuth": true,
@@ -89,7 +89,8 @@
         "allowedRoles": ["principal", "hod"],
         "priviliges": {
           "Course_Id": ["principal"],
-          "Branch_Id": ["principal"]
+          "Branch_Id": ["principal"],
+          "added_by": ["principal"]
         }
       },
       "writeAuth": {
@@ -109,7 +110,8 @@
         "allowedRoles": ["principal", "hod"],
         "priviliges": {
           "course_id": ["principal"],
-          "Branch_Id": ["principal"]
+          "Branch_Id": ["principal"],
+          "added_by": ["principal"]
         }
       },
       "writeAuth": {

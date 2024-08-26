@@ -21,7 +21,7 @@ CREATE TABLE "branches" (
 	 "Branch_Id" text PRIMARY KEY,
 	 "Branch_Name" text NOT NULL,
 	 "Course_Id" text NOT NULL,
-	 "HoD" text NOT NULL,
+	 "HoD" text,
 	 "Teachers" text[],
 	 "added_by" text NOT NULL,
 	 "college_id" text NOT NULL);
@@ -30,7 +30,7 @@ CREATE TABLE "branches" (
 CREATE TABLE "college" (
 	 "college_id" text PRIMARY KEY,
 	 "college_name" text NOT NULL,
-	 "principal_id" text NOT NULL);
+	 "principal_id" text);
 
 -- CREATE TABLE courses
 CREATE TABLE "courses" (

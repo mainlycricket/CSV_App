@@ -40,7 +40,7 @@ func generateInititalSchema() error {
 
 	appConfig := AppCongif{
 		SchemaPath: filepath.Join(dataPath, "schema.json"),
-		TablesAuth: make(map[string]TableAuth, 5),
+		Tables:     make(map[string]TableConfig, 5),
 	}
 
 	for _, file := range dirList {
@@ -60,7 +60,6 @@ func generateInititalSchema() error {
 			return errors.New(message)
 		}
 
-		appConfig.TablesAuth[tableName] = TableAuth{}
 		csvFiles[tableName] = true
 		mutex.Lock()
 		tablesCount += 1
@@ -76,13 +75,13 @@ func generateInititalSchema() error {
 	for resp := range tableRespChannel {
 		if resp.err != nil {
 			return resp.err
-		} else {
-			fileName := resp.table.FileName
-			tableName := sanitize_db_label(strings.TrimSuffix(fileName, ".csv"))
-			dbSchema.Tables[tableName] = resp.table
-			key := resp.table.PrimaryKey + ":" + resp.table.Columns[resp.table.PrimaryKey].DataType
-			primaryKeys[key] = tableName
 		}
+
+		fileName := resp.table.FileName
+		tableName := sanitize_db_label(strings.TrimSuffix(fileName, ".csv"))
+		dbSchema.Tables[tableName] = resp.table
+		key := resp.table.PrimaryKey + ":" + resp.table.Columns[resp.table.PrimaryKey].DataType
+		primaryKeys[key] = tableName
 
 		mutex.Lock()
 		tablesCount -= 1
@@ -94,6 +93,7 @@ func generateInititalSchema() error {
 	}
 
 	dbSchema.setForeignKeys(primaryKeys)
+	appConfig.setReadConfig(&dbSchema)
 
 	if err := writeJsonFile(appConfig.SchemaPath, dbSchema); err != nil {
 		return err
@@ -507,4 +507,39 @@ func (dbSchema *DB) validateSchema() error {
 	}
 
 	return nil
+}
+
+func (appConfig *AppCongif) setReadConfig(dbSchema *DB) {
+	for tableName, table := range dbSchema.Tables {
+		columns := make([]string, 0, len(table.Columns))
+		foreignColumns := map[string][]string{}
+
+		for columnName, column := range table.Columns {
+			columns = append(columns, columnName)
+
+			foreignTableName := column.ForeignTable
+
+			if len(foreignTableName) > 0 && foreignTableName != "__" {
+				if foreignTable, ok := dbSchema.Tables[foreignTableName]; ok {
+					foreignColumnNames := make([]string, 0, len(foreignTable.Columns))
+
+					for foreignColumnName := range foreignTable.Columns {
+						foreignColumnNames = append(foreignColumnNames, foreignColumnName)
+					}
+
+					foreignColumns[columnName] = foreignColumnNames
+				}
+			}
+		}
+
+		if len(foreignColumns) == 0 {
+			foreignColumns = nil
+		}
+
+		appConfig.Tables[tableName] = TableConfig{
+			ReadAllConfig:     ReadConfig{Columns: columns, ForeignColumns: foreignColumns},
+			ReadByPkConfig:    ReadConfig{Columns: columns, ForeignColumns: foreignColumns},
+			DefaultPagination: 20,
+		}
+	}
 }

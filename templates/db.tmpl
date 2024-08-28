@@ -157,43 +157,57 @@ func db_insert_ {{- .TableName -}} (ctx context.Context, item *Table_ {{- .Table
 
 
 {{- define "readAll" -}}
-func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []any) ([] Table_ {{- .TableName -}} _response, error) {
-	data := []Table_ {{- .TableName -}} _response{}
+func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []any) ([] Table_ {{- .TableName -}} _ResponseAll, error) {
+	data := []Table_ {{- .TableName -}} _ResponseAll{}
 	
 	query := `SELECT {{- " " -}}
 
-	{{- if eq (len .PrimaryKey) 0 -}} "{{- .TableName -}} "."__ID", {{ end -}}
+	{{- $tableName := .TableName -}}
+	{{- $readAllConfig := .TableConfig.ReadAllConfig -}}
+	{{- $n := len $readAllConfig.Columns -}}
 
-	{{- $n := len .Columns  -}}
-	{{ $tableName := .TableName  }}
+	{{- if sliceContains $readAllConfig.Columns "__ID" -}}
+		"{{- .TableName -}} "."__ID"
+		{{- if gt $n 1 -}} , {{- end -}}
+		{{- $n = decrease $n }}
+	{{- end -}}
 
 	{{- range $column := .Columns -}}
-		{{- $n = decrease $n -}}
-		
-		{{- if $column.Hash -}}
+		{{- if or $column.Hash (not (sliceContains $readAllConfig.Columns $column.ColumnName)) -}}
 			{{- continue -}}
 		{{- else if $column.ForeignTable -}}
 			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
-			{{- $fNum := len $foreignColumns -}}
-
-			{{- range $foreignColumn := $foreignColumns -}}
-				{{- $fNum = decrease $fNum -}}
-
-				{{- if $foreignColumn.Hash -}}
-					{{- continue -}}
+			{{- $selectedForeignColumns := index $readAllConfig.ForeignColumns $column.ColumnName -}}
+			
+			{{- $fNum := len $selectedForeignColumns -}}
+			{{- if $fNum -}}
+				{{- if sliceContains $selectedForeignColumns "__ID" -}}
+					"{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "."__ID"
+					{{- if gt $fNum 1 -}} , {{- end -}}
+					{{- $fNum = decrease $fNum }}
 				{{- end -}}
 
-				"{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
-				
-				{{- if gt $fNum 0 -}}
-					{{- ", " -}}
+				{{- range $foreignColumn := $foreignColumns -}}
+					{{- if or $foreignColumn.Hash (not (sliceContains $selectedForeignColumns $foreignColumn.ColumnName )) -}}
+						{{- continue -}}
+					{{- end -}}
+
+					"{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
+
+					{{- $fNum = decrease $fNum -}}	
+					{{- if gt $fNum 0 -}}
+						{{- ", " -}}
+					{{- end -}}
 				{{- end -}}
+			{{- else -}}
+				" {{- $tableName -}} "." {{- $column.ColumnName -}}"
 			{{- end -}}
 
 		{{- else -}}
 			" {{- $tableName -}} "." {{- $column.ColumnName -}}"
 		{{- end -}}
 
+		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
 			{{- ", " -}}
 		{{- end -}}
@@ -203,10 +217,10 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 	{{- " " -}} FROM "{{ $tableName }}"
 
 	{{- range $column := .Columns -}}
-		{{- if $column.ForeignTable -}}
-			{{- " LEFT JOIN " -}} "{{- $column.ForeignTable -}}" AS "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}}"
-			{{- " ON " -}} "{{- $tableName -}} "."  {{- $column.ColumnName -}}"
-			{{- " = " -}} "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $column.ForeignField -}}"
+		{{- if and $column.ForeignTable (len (index $readAllConfig.ForeignColumns $column.ColumnName)) -}}
+				{{- " LEFT JOIN " -}} "{{- $column.ForeignTable -}}" AS "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}}"
+				{{- " ON " -}} "{{- $tableName -}} "."  {{- $column.ColumnName -}}"
+				{{- " = " -}} "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $column.ForeignField -}}"
 		{{- end -}}
 	{{- end -}}
 	`
@@ -230,41 +244,54 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 	defer rows.Close()
 
 	for rows.Next() {
-		item := Table_ {{- .TableName -}} _response{}
+		item := Table_ {{- .TableName -}} _ResponseAll{}
 		
 		rows.Scan(
+		
+		{{- $n = len $readAllConfig.Columns  -}}
 
-		{{- if eq (len .PrimaryKey) 0 -}}
-			&item.ID__,
+		{{- if sliceContains $readAllConfig.Columns "__ID" -}}
+			&item.ID__
+			{{- if gt $n 1 -}} , {{- end -}}
+			{{- $n = decrease $n }}
 		{{- end -}}
 
-		{{- $n = len .Columns  -}}
-
 		{{- range $column := .Columns -}}
-			{{- $n = decrease $n -}}
-			
-			{{- if $column.Hash -}}
+			{{- if or $column.Hash (not (sliceContains $readAllConfig.Columns $column.ColumnName)) -}}
 				{{- continue -}}
 			{{- else if $column.ForeignTable -}}
 				{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
-				{{- $fNum := len $foreignColumns -}}
+				{{- $selectedForeignColumns := index $readAllConfig.ForeignColumns $column.ColumnName -}}
+				{{- $fNum := len $selectedForeignColumns -}}
 
-				{{- range $foreignColumn := $foreignColumns -}}
-					{{- $fNum = decrease $fNum -}}
-
-					{{- if $foreignColumn.Hash -}}
-						{{- continue -}}
-					{{- else if HasSuffix $foreignColumn.DataType "[]" -}}
-						pq.Array(&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}} )
-					{{- else -}}
-						&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}}
+				{{- if $selectedForeignColumns -}}
+					{{- if sliceContains $selectedForeignColumns "__ID" -}}
+						&item.Column_ {{- $column.ColumnName -}} .ID__ -}}
+						{{- if gt $fNum 1 -}} , {{- end -}}
+						{{- $fNum = decrease $fNum -}}
 					{{- end -}}
 
-					{{- if gt $fNum 0 -}}
-						{{- ", " -}}
+					{{- range $foreignColumn := $foreignColumns -}}
+						{{- if or $foreignColumn.Hash (not (sliceContains $selectedForeignColumns $foreignColumn.ColumnName )) -}}
+							{{- continue -}}
+						{{- else if HasSuffix $foreignColumn.DataType "[]" -}}
+							pq.Array(&item.Column_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}} )
+						{{- else -}}
+							&item.Column_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}}
+						{{- end -}}
+
+						{{- $fNum = decrease $fNum -}}
+						{{- if gt $fNum 0 -}}
+							{{- ", " -}}
+						{{- end -}}
+					{{- end -}}
+				{{- else -}}
+					{{- if HasSuffix $column.DataType "[]" -}}
+						pq.Array(&item.Column_  {{- $column.ColumnName -}} )
+					{{- else -}}
+						&item.Column_ {{- $column.ColumnName -}}
 					{{- end -}}
 				{{- end -}}
-
 			{{- else -}}
 				{{- if HasSuffix $column.DataType "[]" -}}
 					pq.Array(&item.Column_  {{- $column.ColumnName -}} )
@@ -273,6 +300,7 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 				{{- end -}}
 			{{- end -}}
 
+			{{- $n = decrease $n -}}
 			{{- if gt $n 0 -}}
 				{{- ", " -}}
 			{{- end -}}
@@ -290,45 +318,58 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 {{- end -}}
 
 {{ define "readByPK" }}
-func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {{- .TableName -}} _response, error) {
-	item := Table_ {{- .TableName -}} _response {}
+func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {{- .TableName -}} _ResponsePK, error) {
+	item := Table_ {{- .TableName -}} _ResponsePK{}
 
 	args := []any{id}
 
 	query := `SELECT {{- " " -}}
 
-	{{- if eq (len .PrimaryKey) 0 -}} "{{- .TableName -}} "."__ID", {{ end -}}
-
-	{{- $n := len .Columns  -}}
 	{{- $tableName := .TableName -}}
+	{{- $readPkConfig := .TableConfig.ReadByPkConfig -}}
+	{{- $n := len $readPkConfig.Columns -}}
+
+	{{- if sliceContains $readPkConfig.Columns "__ID" -}}
+		"{{- .TableName -}} "."__ID"
+		{{- if gt $n 1 -}} , {{- end -}}
+		{{- $n = decrease $n }}
+	{{- end -}}
 
 	{{- range $column := .Columns -}}
-		{{- $n = decrease $n -}}
-
-		{{- if $column.Hash -}}
+		{{- if or $column.Hash (not (sliceContains $readPkConfig.Columns $column.ColumnName)) -}}
 			{{- continue -}}
 		{{- else if $column.ForeignTable -}}
 			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
-			{{- $fNum := len $foreignColumns -}}
+			{{- $selectedForeignColumns := index $readPkConfig.ForeignColumns $column.ColumnName -}}
+			{{- $fNum := len $selectedForeignColumns -}}
 
-			{{- range $foreignColumn := $foreignColumns -}}
-				{{- $fNum = decrease $fNum -}}
-
-				{{- if $foreignColumn.Hash -}}
-					{{- continue -}}
+			{{- if $fNum -}}
+				{{- if sliceContains $selectedForeignColumns "__ID" -}}
+					"{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "."__ID"
+					{{- if gt $fNum 1 -}} , {{- end -}}
+					{{- $fNum = decrease $fNum }}
 				{{- end -}}
 
-				" {{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
-				
-				{{- if gt $fNum 0 -}}
-					{{- ", " -}}
+				{{- range $foreignColumn := $foreignColumns -}}
+					{{- if or $foreignColumn.Hash (not (sliceContains $selectedForeignColumns $foreignColumn.ColumnName )) -}}
+						{{- continue -}}
+					{{- end -}}
+
+					" {{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "." {{- $foreignColumn.ColumnName -}}"
+					
+					{{- $fNum = decrease $fNum -}}
+					{{- if gt $fNum 0 -}}
+						{{- ", " -}}
+					{{- end -}}
 				{{- end -}}
+			{{- else -}}
+					" {{- $tableName -}} "." {{- $column.ColumnName -}}"
 			{{- end -}}
-
 		{{- else -}}
 			" {{- $tableName -}} "." {{- $column.ColumnName -}}"
 		{{- end -}}
 
+		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
 			{{- ", " -}}
 		{{- end -}}
@@ -338,7 +379,7 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 	{{- " " -}} FROM "{{ $tableName }}"
 
 	{{- range $column := .Columns -}}
-		{{- if $column.ForeignTable -}}
+		{{- if and $column.ForeignTable (len (index $readPkConfig.ForeignColumns $column.ColumnName)) -}}
 			{{- " LEFT JOIN " -}} "{{- $column.ForeignTable -}}" AS "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}}"
 			{{- " ON " -}} "{{- $tableName -}} "."  {{- $column.ColumnName -}}"
 			{{- " = " -}} "{{- $column.ColumnName -}} _ {{- $column.ForeignTable -}} "."  {{- $column.ForeignField -}}"
@@ -355,18 +396,38 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 	
 	{{- " " -}} = $1`
 
-	{{ if len .TableAuth.ReadAuth.Priviliges }}
-		var ctxVal any;
-	{{ end }}
-
+	{{ $ctxValDeclared := false }}
 	{{ $tableName := .TableName }}
+	{{ $userField := .TableConfig.UserField }}
+	{{ $orgFields := .TableConfig.OrgFields }}
 
-	{{ range $field, $_ := .TableAuth.ReadAuth.Priviliges }}
-		ctxVal = ctx.Value(ContextKey("{{ $field }}"))
+	{{ if $userField }}
+		{{ if not $ctxValDeclared }}
+			ctxVal := ctx.Value(ContextKey("{{ $userField }}"))
+			{{ $ctxValDeclared = true }}
+		{{ else }}
+			ctxVal = ctx.Value(ContextKey("{{ $userField }}"))
+		{{ end }}
+
 		if ctxVal != nil {
 			value := ctxVal.(string)
 			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $field }}" = $%d`, len(args))
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+		}
+	{{ end }}
+
+	{{ range $orgField, $tokenField := $orgFields }}
+		{{ if not $ctxValDeclared }}
+			ctxVal := ctx.Value(ContextKey("{{ $orgField }}"))
+			{{ $ctxValDeclared = true }}
+		{{ else }}
+			ctxVal = ctx.Value(ContextKey("{{ $orgField }}"))
+		{{ end }}
+
+		if ctxVal != nil {
+			value := ctxVal.(string)
+			args = append(args, value)
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
 		}
 	{{ end }}
 
@@ -380,38 +441,50 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 
 	if err := stmt.QueryRowContext(ctx, args...).Scan(
 
-	{{- if eq (len .PrimaryKey) 0 -}}
-		{{- "&item.ID__," -}}
-	{{- end -}}
+	{{- $n = len $readPkConfig.Columns  -}}
 
-	{{- $n := len .Columns -}}
+	{{- if sliceContains $readPkConfig.Columns "__ID" -}}
+			&item.ID__
+			{{- if gt $n 1 -}} , {{- end -}}
+			{{- $n = decrease $n }}
+		{{- end -}}
 
 	{{- range $column := .Columns -}}
-		{{- $n = decrease $n -}}
-
-		{{- if $column.Hash -}}
+		{{- if or $column.Hash (not (sliceContains $readPkConfig.Columns $column.ColumnName)) -}}
 			{{- continue -}}
-
 		{{- else if $column.ForeignTable -}}
 			{{- $foreignColumns := getTableColumns $column.ForeignTable -}}
-			{{- $fNum := len $foreignColumns -}}
+			{{- $selectedForeignColumns := index $readPkConfig.ForeignColumns $column.ColumnName -}}
+			{{- $fNum := len $selectedForeignColumns -}}
 
-			{{- range $foreignColumn := $foreignColumns -}}
-				{{- $fNum = decrease $fNum -}}
-
-				{{- if $foreignColumn.Hash -}}
-					{{- continue -}}
-				{{- else if HasSuffix $foreignColumn.DataType "[]" -}}
-					pq.Array(&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}} )
-				{{- else -}}
-					&item.Fkey_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}}
+			{{- if $selectedForeignColumns -}}
+				{{- if sliceContains $selectedForeignColumns "__ID" -}}
+					&item.Column_ {{- $column.ColumnName -}} .ID__ -}}
+					{{- if gt $fNum 1 -}} , {{- end -}}
+					{{- $fNum = decrease $fNum -}}
 				{{- end -}}
 
-				{{- if gt $fNum 0 -}}
-					{{- ", " -}}
+				{{- range $foreignColumn := $foreignColumns -}}
+					{{- if or $foreignColumn.Hash (not (sliceContains $selectedForeignColumns $foreignColumn.ColumnName )) -}}
+						{{- continue -}}
+					{{- else if HasSuffix $foreignColumn.DataType "[]" -}}
+						pq.Array(&item.Column_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}} )
+					{{- else -}}
+						&item.Column_ {{- $column.ColumnName -}} .Column_ {{- $foreignColumn.ColumnName -}}
+					{{- end -}}
+
+					{{- $fNum = decrease $fNum -}}
+					{{- if gt $fNum 0 -}}
+						{{- ", " -}}
+					{{- end -}}
+				{{- end -}}
+			{{- else -}}
+				{{- if HasSuffix $column.DataType "[]" -}}
+					pq.Array(&item.Column_  {{- $column.ColumnName -}} )
+				{{- else -}}
+					&item.Column_ {{- $column.ColumnName -}}
 				{{- end -}}
 			{{- end -}}
-
 		{{- else -}}
 			{{- if HasSuffix $column.DataType "[]" -}}
 				pq.Array(&item.Column_  {{- $column.ColumnName -}} )
@@ -420,6 +493,7 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 			{{- end -}}
 		{{- end -}}
 
+		{{- $n = decrease $n -}}
 		{{- if gt $n 0 -}}
 			{{- ", " -}}
 		{{- end -}}
@@ -486,18 +560,38 @@ func db_update_ {{- .TableName -}} (ctx context.Context, id string, item *Table_
 
 	`
 
-	{{ if len .TableAuth.WriteAuth.Priviliges }}
-		var ctxVal any;
-	{{ end }}
-
+	{{ $ctxValDeclared := false }}
 	{{ $tableName := .TableName }}
+	{{ $userField := .TableConfig.UserField }}
+	{{ $orgFields := .TableConfig.OrgFields }}
 
-	{{ range $field, $_ := .TableAuth.WriteAuth.Priviliges }}
-		ctxVal = ctx.Value(ContextKey("{{ $field }}"))
+	{{ if $userField }}
+		{{ if not $ctxValDeclared }}
+			ctxVal := ctx.Value(ContextKey("{{ $userField }}"))
+			{{ $ctxValDeclared = true }}
+		{{ else }}
+			ctxVal = ctx.Value(ContextKey("{{ $userField }}"))
+		{{ end }}
+
 		if ctxVal != nil {
 			value := ctxVal.(string)
 			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $field }}" = $%d`, len(args))
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+		}
+	{{ end }}
+
+	{{ range $orgField, $tokenField := $orgFields }}
+		{{ if not $ctxValDeclared }}
+			ctxVal := ctx.Value(ContextKey("{{ $orgField }}"))
+			{{ $ctxValDeclared = true }}
+		{{ else }}
+			ctxVal = ctx.Value(ContextKey("{{ $orgField }}"))
+		{{ end }}
+
+		if ctxVal != nil {
+			value := ctxVal.(string)
+			args = append(args, value)
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
 		}
 	{{ end }}
 	
@@ -539,18 +633,38 @@ func db_delete_ {{- .TableName -}} (ctx context.Context, id string) error {
 
 	`
 
-	{{ if len .TableAuth.WriteAuth.Priviliges }}
-		var ctxVal any;
-	{{ end }}
-	
+	{{ $ctxValDeclared := false }}
 	{{ $tableName := .TableName }}
+	{{ $userField := .TableConfig.UserField }}
+	{{ $orgFields := .TableConfig.OrgFields }}
 
-	{{ range $field, $_ := .TableAuth.WriteAuth.Priviliges }}
-		ctxVal = ctx.Value(ContextKey("{{ $field }}"))
+	{{ if $userField }}
+		{{ if not $ctxValDeclared }}
+			ctxVal := ctx.Value(ContextKey("{{ $userField }}"))
+			{{ $ctxValDeclared = true }}
+		{{ else }}
+			ctxVal = ctx.Value(ContextKey("{{ $userField }}"))
+		{{ end }}
+
 		if ctxVal != nil {
 			value := ctxVal.(string)
 			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $field }}" = $%d`, len(args))
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+		}
+	{{ end }}
+
+	{{ range $orgField, $tokenField := $orgFields }}
+		{{ if not $ctxValDeclared }}
+			ctxVal := ctx.Value(ContextKey("{{ $orgField }}"))
+			{{ $ctxValDeclared = true }}
+		{{ else }}
+			ctxVal = ctx.Value(ContextKey("{{ $orgField }}"))
+		{{ end }}
+
+		if ctxVal != nil {
+			value := ctxVal.(string)
+			args = append(args, value)
+			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
 		}
 	{{ end }}
 

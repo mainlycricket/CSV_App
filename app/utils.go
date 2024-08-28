@@ -3,15 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
-	"os"
-	"slices"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -173,59 +168,4 @@ func hashData(strings []*CustomNullString, stringArrays [][]*CustomNullString) e
 	}
 
 	return nil
-}
-
-func getSignedToken(username, role, college_id, course_id, branch_id string) (string, error) {
-
-	claims := CustomJwtClaims{
-		username, role, college_id, course_id, branch_id, jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedString, err := token.SignedString([]byte(os.Getenv("JWT_KEY")))
-	return signedString, err
-}
-
-func validateSignedToken(signedToken string) (jwt.MapClaims, error) {
-	parsedToken, err := jwt.Parse(signedToken, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-
-		return []byte(os.Getenv("JWT_KEY")), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok {
-		return claims, nil
-	}
-
-	return nil, errors.New("failed to parse claims")
-}
-
-func authorizeRequest(r *http.Request, allowedRoles []string) (jwt.MapClaims, error) {
-	cookie, err := r.Cookie("access_token")
-	if err != nil {
-		return nil, err
-	}
-
-	claims, err := validateSignedToken(cookie.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	role := claims["role"].(string)
-
-	if allowedRoles != nil && !slices.Contains(allowedRoles, role) {
-		return nil, fmt.Errorf("%s role is not authorized", role)
-	}
-
-	return claims, nil
 }

@@ -34,21 +34,29 @@ type Column struct {
 }
 
 type AppCongif struct {
-	SchemaPath string               `json:"schemaPath"`
-	AuthTable  string               `json:"authTable"`
-	OrgFields  []string             `json:"orgFields"`
-	TablesAuth map[string]TableAuth `json:"tablesAuth"`
+	SchemaPath string                 `json:"schemaPath"`
+	AuthTable  string                 `json:"authTable"`
+	OrgFields  []string               `json:"orgFields"`
+	Tables     map[string]TableConfig `json:"tables"`
 }
 
-type TableAuth struct {
-	UserField string   `json:"userField"`
-	OrgFields []string `json:"orgFields"`
-	ReadAuth  AuthInfo `json:"readAuth"`  // GET
-	WriteAuth AuthInfo `json:"writeAuth"` // INSERT, UPDATE, DELETE
+type TableConfig struct {
+	UserField         string            `json:"userField"`
+	OrgFields         map[string]string `json:"orgFields"`
+	ReadAuth          AuthInfo          `json:"readAuth"`  // GET
+	WriteAuth         AuthInfo          `json:"writeAuth"` // INSERT, UPDATE, DELETE
+	ReadAllConfig     ReadConfig        `json:"readAllConfig"`
+	ReadByPkConfig    ReadConfig        `json:"readByPkConfig"`
+	DefaultPagination int               `json:"defaultPagination"`
 }
 
 type AuthInfo struct {
 	BasicAuth    bool                `json:"basicAuth"`
 	AllowedRoles []string            `json:"allowedRoles"`
 	Priviliges   map[string][]string `json:"priviliges"`
+}
+
+type ReadConfig struct {
+	Columns        []string            `json:"columns"`
+	ForeignColumns map[string][]string `json:"foreignColumns"`
 }

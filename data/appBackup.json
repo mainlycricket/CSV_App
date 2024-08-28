@@ -19,7 +19,7 @@
     },
     "branches": {
       "userField": "added_by",
-      "orgFields": ["college_id", "Course_Id"],
+      "orgFields": { "college_id": "college_id", "Course_Id": "course_id" },
       "readAuth": {
         "basicAuth": true,
         "allowedRoles": ["principal"],
@@ -51,7 +51,7 @@
     },
     "courses": {
       "userField": "added_by",
-      "orgFields": ["college_id"],
+      "orgFields": { "college_id": "college_id" },
       "readAuth": {
         "basicAuth": true,
         "allowedRoles": ["principal"],
@@ -65,7 +65,11 @@
     },
     "login": {
       "userField": "added_by",
-      "orgFields": ["college_id", "course_id", "branch_id"],
+      "orgFields": {
+        "college_id": "college_id",
+        "course_id": "course_id",
+        "branch_id": "branch_id"
+      },
       "readAuth": {
         "basicAuth": true,
         "allowedRoles": ["admin", "principal"],
@@ -83,7 +87,11 @@
     },
     "students": {
       "userField": "added_by",
-      "orgFields": ["college_id", "Course_Id", "Branch_Id"],
+      "orgFields": {
+        "college_id": "college_id",
+        "Course_Id": "course_id",
+        "Branch_Id": "branch_id"
+      },
       "readAuth": {
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
@@ -104,7 +112,11 @@
     },
     "subjects": {
       "userField": "added_by",
-      "orgFields": ["college_id", "course_id", "Branch_Id"],
+      "orgFields": {
+        "college_id": "college_id",
+        "course_id": "course_id",
+        "Branch_Id": "branch_id"
+      },
       "readAuth": {
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],

@@ -15,7 +15,7 @@ type TemplateTableData struct {
 	PrimaryKey  string
 	Columns     []Column
 	IsAuthTable bool
-	TableAuth   TableAuth
+	TableConfig TableConfig
 }
 
 type TemplateFnCall struct {
@@ -68,12 +68,14 @@ func (dbSchema *DB) getTemplatesMetaData(basePath, appPath string, appConfig *Ap
 			templatePath: filepath.Join(basePath, "db.tmpl"),
 			data:         slicedTableData,
 			templateFuncs: template.FuncMap{
-				"HasSuffix":       strings.HasSuffix,
-				"increase":        increase,
-				"decrease":        decrease,
-				"getTableColumns": getTableColumnsFn(slicedTableData),
-				"getOrgFields":    getOrgFields,
-				"capitalize":      capitalize,
+				"HasSuffix":         strings.HasSuffix,
+				"increase":          increase,
+				"decrease":          decrease,
+				"getTableColumns":   getTableColumnsFn(slicedTableData),
+				"getOrgFields":      getOrgFields,
+				"capitalize":        capitalize,
+				"sliceContains":     slices.Contains[[]string, string],
+				"getColumnDataType": getDataTypeFn(slicedTableData),
 			},
 		},
 
@@ -82,9 +84,11 @@ func (dbSchema *DB) getTemplatesMetaData(basePath, appPath string, appConfig *Ap
 			filePath:     filepath.Join(appPath, "models.go"),
 			templatePath: filepath.Join(basePath, "model.tmpl"),
 			templateFuncs: template.FuncMap{
-				"getDbType":    getDbType,
-				"getOrgFields": getOrgFields,
-				"capitalize":   capitalize,
+				"getDbType":         getDbType,
+				"getOrgFields":      getOrgFields,
+				"capitalize":        capitalize,
+				"sliceContains":     slices.Contains[[]string, string],
+				"getColumnDataType": getDataTypeFn(slicedTableData),
 			},
 			data: slicedTableData,
 		},
@@ -230,7 +234,7 @@ func (dbSchema *DB) getSlicedTableData(appConfig *AppCongif) []TemplateTableData
 			PrimaryKey:  table.PrimaryKey,
 			Columns:     []Column{},
 			IsAuthTable: table.TableName == appConfig.AuthTable,
-			TableAuth:   appConfig.TablesAuth[table.TableName],
+			TableConfig: appConfig.Tables[table.TableName],
 		}
 
 		for _, column := range table.Columns {
@@ -264,5 +268,21 @@ func getTableColumnsFn(tablesData []TemplateTableData) func(tableName string) []
 			}
 		}
 		return []Column{}
+	}
+}
+
+// Returns a function to get datatype of a column in table name
+func getDataTypeFn(tablesData []TemplateTableData) func(tableName, columnName string) string {
+	return func(tableName, columnName string) string {
+		for _, table := range tablesData {
+			if table.TableName == tableName {
+				for _, column := range table.Columns {
+					if column.ColumnName == columnName {
+						return getDbType(column.DataType)
+					}
+				}
+			}
+		}
+		return ""
 	}
 }

@@ -15,16 +15,20 @@ type Column struct {
 	pgType        string
 }
 
+type ReadAllApiResp struct {
+    Next bool `json:"next"`
+    Data any `json:"data"`
+}
+
 {{ range $table := . }}
 
 {{ template "TableStruct" $table }}
 {{ template "TableMap" $table }}
+{{ template "TableResponsePK" $table }}
+{{ template "TableResponseAll" $table }}
 
 {{- if .IsAuthTable -}}
     {{ template "LoginStructs" $table }}
-{{- else -}}
-    {{ template "TableResponseAll" $table }}
-    {{ template "TableResponsePK" $table }}
 {{- end -}}
 
 {{- end -}}

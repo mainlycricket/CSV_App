@@ -77,16 +77,14 @@ func connectDB() (*sql.DB, error) {
 
 {{- if $table.IsAuthTable -}}
 // AUTH
-{{ template "insert" $table }}
 {{ template "login" $table }}
-{{- else -}}
+{{- end -}}
 // {{ $table.TableName }} CRUD
 {{ template "insert" $table }}
 {{ template "readAll" $table }}
 {{ template "readByPK" $table }}
 {{ template "update" $table }}
 {{ template "delete" $table }}
-{{- end -}}
 
 {{- end -}}
 
@@ -157,8 +155,9 @@ func db_insert_ {{- .TableName -}} (ctx context.Context, item *Table_ {{- .Table
 
 
 {{- define "readAll" -}}
-func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []any) ([] Table_ {{- .TableName -}} _ResponseAll, error) {
-	data := []Table_ {{- .TableName -}} _ResponseAll{}
+func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []any) ([] Table_ {{- .TableName -}} _ResponseAll, bool, error) {
+	recordsCount := args[len(args) - 1].(int) 
+	data := make([]Table_ {{- .TableName -}} _ResponseAll, 0, recordsCount - 1)
 	
 	query := `SELECT {{- " " -}}
 
@@ -230,7 +229,7 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 	preparedQuery, err := db.PrepareContext(ctx, query)
 
 	if err != nil {
-		return data, err
+		return data, false, err
 	}
 
 	defer preparedQuery.Close()
@@ -238,12 +237,19 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 	rows, err := preparedQuery.QueryContext(ctx, args...)
 
 	if err != nil {
-		return data, err
+		return data, false, err
 	}
 
 	defer rows.Close()
+	nextFlag := false
 
 	for rows.Next() {
+		recordsCount--
+		if recordsCount == 0 {
+			nextFlag = true
+			break
+		}
+
 		item := Table_ {{- .TableName -}} _ResponseAll{}
 		
 		rows.Scan(
@@ -312,7 +318,7 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 		data = append(data, item)
 	}
 
-	return data, nil
+	return data, nextFlag, nil
 }
 
 {{- end -}}

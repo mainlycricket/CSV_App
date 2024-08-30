@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"time"
 )
 
@@ -40,11 +41,11 @@ func startServer() *http.Server {
 		{{ else }}
 		// {{ .TableName }} routes
 		http.HandleFunc("POST /{{- .TableName -}}", api_create_ {{- .TableName -}})
+		{{ end }}
 		http.HandleFunc("GET /{{- .TableName -}}", api_getAll_ {{- .TableName -}})
 		http.HandleFunc("GET /{{- .TableName -}}ByPK", api_getByPk_ {{- .TableName -}})
 		http.HandleFunc("PUT /{{- .TableName -}}", api_update_ {{- .TableName -}})
 		http.HandleFunc("DELETE /{{- .TableName -}}", api_delete_ {{- .TableName -}})
-		{{ end }}
 	{{ end }}
 
 	s := &http.Server{
@@ -57,17 +58,15 @@ func startServer() *http.Server {
 {{ range $table := . }}
 	{{- if .IsAuthTable -}}
 	// AUTH handler functions
-	{{ template "create" $table }}
 	{{ template "login" $table }}
 	{{ template "logout" $table }}
-	{{ else }}
+	{{ end }}
 	// {{ .TableName }} handler functions
 	{{ template "create" $table }}
 	{{ template "readAll" $table }}
 	{{ template "readByPK" $table }}
 	{{ template "update" $table }}
 	{{ template "delete" $table }}
-	{{ end }}
 {{ end }}
 
 {{ define "create" }}
@@ -197,6 +196,62 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 
+	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	if orderBy := queryValues.Get("__order"); len(orderBy) == 0 {
+		queryValues["__order"] = []string{"
+		
+		{{- if len .PrimaryKey -}}
+			{{- .PrimaryKey -}}
+		{{- else -}}
+			{{- "__ID" -}}
+		{{- end -}}
+	
+		"}
+	}
+
+	skip := []string{"0"}
+	limit := []string{" {{- .TableConfig.DefaultPagination -}} "}
+
+	if limitQuery := queryValues.Get("__limit"); len(limitQuery) > 0 {
+		limitCount, err := strconv.Atoi(limitQuery)
+		if err != nil || limitCount < 1 {
+			message := fmt.Sprintf("%v is invalid __limit param: %v", limitQuery, err)
+			log.Print(message)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(getJsonResponse(false, "invalid __limit param", nil))
+			return
+		}
+		limit[0] = limitQuery
+	}
+
+	page := queryValues.Get("__page")
+	if len (page) == 0 {
+		page = "1"
+	}
+
+	pageNum, err := strconv.Atoi(page)
+	if err != nil || pageNum < 1 {
+		message := fmt.Sprintf("%v is invalid __page param: %v", page, err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, "invalid __page param", nil))
+		return
+	}
+
+	limitCount, _ := strconv.Atoi(limit[0])
+	skipCount := (pageNum - 1) * limitCount
+	skip[0] = strconv.Itoa(skipCount)
+
+	queryValues["__skip"] = skip
+	queryValues["__limit"] = limit
+
 	{{ $roleDeclared := false }}
 
 	{{ if or $userField (len $orgFields) }}
@@ -243,6 +298,8 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		{{ end }}
 	{{ end }}
 
+	clause, args, err := getQueryClauseArgs(queryValues, Map_ {{- .TableName -}}, "{{- .TableName -}}")
+
 	if err != nil {
 		message := fmt.Sprintf("error while parsing request query: %v", err)
 		log.Print(message)
@@ -251,23 +308,8 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var clause string
-	var args []any
-
-	if len(queryValues) > 0 {
-		clause, args, err = getQueryClauseArgs(queryValues, Map_ {{- .TableName -}}, "{{- .TableName -}}")
-
-		if err != nil {
-			message := fmt.Sprintf("error while parsing request query: %v", err)
-			log.Print(message)
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write(getJsonResponse(false, message, nil))
-			return
-		}
-	}
-
 	ctx := r.Context()
-	data, err := db_readAll_ {{- .TableName -}} (ctx, clause, args)
+	data, nextFlag, err := db_readAll_ {{- .TableName -}} (ctx, clause, args)
 
 	if err != nil {
 		message := fmt.Sprintf("error while reading: %v", err)
@@ -277,7 +319,8 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(getJsonResponse(true, "data fetched successfully", data))
+	response := ReadAllApiResp{Next: nextFlag, Data: data}
+	w.Write(getJsonResponse(true, "data fetched successfully", response))
 }
 {{ end }}
 

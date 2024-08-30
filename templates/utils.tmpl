@@ -86,6 +86,14 @@ func getQueryClauseArgs(params url.Values, columnMap map[string]Column, tableNam
 		clause += fmt.Sprintf(` ORDER BY %s`, strings.Join(orderBy, ", "))
 	}
 
+	skipCount, _ := strconv.Atoi(params.Get("__skip"))
+	args = append(args, skipCount)
+	clause += fmt.Sprintf(` OFFSET $%d ROWS`, len(args))
+
+	limitCount, _ := strconv.Atoi(params.Get("__limit"))
+	args = append(args, limitCount+1)
+	clause += fmt.Sprintf(` FETCH FIRST $%d ROWS ONLY`, len(args))
+
 	return clause, args, nil
 }
 

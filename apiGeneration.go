@@ -286,3 +286,176 @@ func getDataTypeFn(tablesData []TemplateTableData) func(tableName, columnName st
 		return ""
 	}
 }
+
+func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
+	if appConfig.SchemaPath != filepath.Join(dbSchema.BasePath, "schema.json") {
+		return fmt.Errorf("invalid schema path: %v", appConfig.SchemaPath)
+	}
+
+	var authTable Table
+	var rolesEnum []string
+
+	// Auth Table Validation
+	if len(appConfig.AuthTable) > 0 {
+		var exists bool
+
+		authTable, exists = dbSchema.Tables[appConfig.AuthTable]
+		if !exists {
+			return fmt.Errorf("auth table %s doesn't exist in schema", appConfig.AuthTable)
+		}
+
+		if authTable.PrimaryKey != "username" {
+			return fmt.Errorf("auth table %s doesn't have 'username' primary key", authTable.TableName)
+		}
+
+		usernameColumn := authTable.Columns["username"]
+		if usernameColumn.DataType != "text" || usernameColumn.Hash {
+			return errors.New(`"username" field should be a text field with hash disabled`)
+		}
+
+		passwordColumn, ok := authTable.Columns["password"]
+		if !ok {
+			return fmt.Errorf("auth table %s doesn't have 'password' field", authTable.TableName)
+		}
+		if passwordColumn.DataType != "text" || !passwordColumn.Hash || !passwordColumn.NotNull {
+			return errors.New(`"password" field should be a not null text field with hash enabled`)
+		}
+
+		roleField, ok := authTable.Columns["role"]
+		if ok && roleField.DataType != "text" || roleField.Hash || !roleField.NotNull || len(roleField.Enums) == 0 {
+			return errors.New(`"role" field should be a not null text field with enums enabled and hash disabled`)
+		}
+
+		for _, orgField := range appConfig.OrgFields {
+			orgColumn, ok := authTable.Columns[orgField]
+			if !ok {
+				return fmt.Errorf(`"%s" org field not found in auth table`, orgField)
+			}
+			if orgColumn.DataType != "text" || orgColumn.Hash {
+				return fmt.Errorf(`org field "%s" should be a field with hash disabled`, orgField)
+			}
+		}
+	}
+
+	if authTable.TableName != "" {
+		rolesEnum, _ = convertAnyArrToStrArr(authTable.Columns["role"].Enums)
+	}
+
+	// Tables Validaton
+	appTablesCount, schemaTablesCount := len(appConfig.Tables), len(dbSchema.Tables)
+	if appTablesCount != schemaTablesCount {
+		return fmt.Errorf("app config contains %d tables while schema contains %d tables", appTablesCount, schemaTablesCount)
+	}
+
+	for tableName, tableConfig := range appConfig.Tables {
+		table, ok := dbSchema.Tables[tableName]
+		if !ok {
+			return fmt.Errorf(`"%s" table not found in schema`, tableName)
+		}
+
+		if userField := tableConfig.UserField; len(userField) > 0 {
+			if authTable.TableName == "" {
+				return fmt.Errorf(`userField exists in "%s" table without authTable`, tableName)
+			}
+
+			userFieldCol, ok := table.Columns[userField]
+			if !ok {
+				return fmt.Errorf(`user field "%s" not found in "%s" table schema`, userField, tableName)
+			}
+			if userFieldCol.ForeignTable != appConfig.AuthTable || userFieldCol.ForeignField != authTable.PrimaryKey {
+				return fmt.Errorf(`user field "%s" in "%s" table schema is not referencing "username" in auth table`, userField, tableName)
+			}
+		}
+
+		if len(tableConfig.OrgFields) > 0 && authTable.TableName == "" {
+			return fmt.Errorf(`orgFields exists in "%s" table without authTable`, tableName)
+		}
+
+		for tableField, authField := range tableConfig.OrgFields {
+			if _, exists := table.Columns[tableField]; !exists {
+				return fmt.Errorf(`org field "%s" not found in "%s" table schema`, tableField, tableName)
+			}
+
+			if !slices.Contains(appConfig.OrgFields, authField) {
+				return fmt.Errorf(`org field "%s" not found in appConfig orgFields`, tableField)
+			}
+		}
+
+		if err := tableConfig.ReadAllConfig.validateReadConfig(dbSchema, tableName); err != nil {
+			return fmt.Errorf(`invalid readAllConfig in "%s" table: %w`, tableName, err)
+		}
+
+		if err := tableConfig.ReadByPkConfig.validateReadConfig(dbSchema, tableName); err != nil {
+			return fmt.Errorf(`invalid readByPkConfig in "%s" table: %w`, tableName, err)
+		}
+
+		if err := tableConfig.ReadAuth.validateAuthInfo(rolesEnum, table.Columns); err != nil {
+			return fmt.Errorf(`invalid read auth for %s table: %w`, tableName, err)
+		}
+
+		if err := tableConfig.WriteAuth.validateAuthInfo(rolesEnum, table.Columns); err != nil {
+			return fmt.Errorf(`invalid write auth for %s table: %w`, tableName, err)
+		}
+
+		if tableConfig.DefaultPagination == 0 {
+			return fmt.Errorf(`invalid default pagination for "%s" table`, tableName)
+		}
+	}
+
+	return nil
+}
+
+func (readConfig *ReadConfig) validateReadConfig(dbSchema *DB, tableName string) error {
+	for _, field := range readConfig.Columns {
+		if _, exists := dbSchema.Tables[tableName].Columns[field]; !exists {
+			return fmt.Errorf(`"%s" field not found in table columns`, field)
+		}
+	}
+
+	for tableField, foreignFields := range readConfig.ForeignColumns {
+		if !slices.Contains(readConfig.Columns, tableField) {
+			return fmt.Errorf(`"%s" foreign field not found in selected fields`, tableField)
+		}
+
+		column := dbSchema.Tables[tableName].Columns[tableField]
+
+		foreignTable := dbSchema.Tables[column.ForeignField]
+		for _, foreignField := range foreignFields {
+			if _, exists := foreignTable.Columns[foreignField]; exists {
+				return fmt.Errorf(`"%s" foreign field not found in "%s" referenced table schema`, foreignField, foreignTable.TableName)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (authInfo *AuthInfo) validateAuthInfo(rolesEnum []string, tableColumns map[string]Column) error {
+	rolesAuthFlag := len(authInfo.AllowedRoles) > 0
+
+	if !authInfo.BasicAuth && (rolesAuthFlag || len(authInfo.Priviliges) > 0) {
+		return errors.New("basic auth should be true to enable role based authorization and priviliges configuration")
+	}
+
+	for _, role := range authInfo.AllowedRoles {
+		if !slices.Contains(rolesEnum, role) {
+			return fmt.Errorf(`invalid allowedRoles "%s" role not present in roles enum of auth table`, role)
+		}
+	}
+
+	for field, explicitSetters := range authInfo.Priviliges {
+		if _, exists := tableColumns[field]; !exists {
+			return fmt.Errorf(`invalid priviliges "%s" field not present table schema`, field)
+		}
+
+		for _, explicitSetter := range explicitSetters {
+			if rolesAuthFlag && !slices.Contains(authInfo.AllowedRoles, explicitSetter) {
+				return fmt.Errorf(`explicitSetter "%s" for "%s" field isn't authorized`, explicitSetter, field)
+			} else if !slices.Contains(rolesEnum, explicitSetter) {
+				return fmt.Errorf(`explicitSetter "%s" for "%s" field isn't found in roles enum`, explicitSetter, field)
+			}
+		}
+	}
+
+	return nil
+}

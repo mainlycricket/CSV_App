@@ -484,7 +484,7 @@
           "hash": false,
           "min": "",
           "max": "",
-          "enums": null,
+          "enums": ["admin", "principal", "hod"],
           "default": null,
           "foreignTable": "",
           "foreignField": ""

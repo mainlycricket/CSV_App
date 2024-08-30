@@ -93,10 +93,9 @@ func main() {
 			log.Fatalf("Schema Validation Failed: %v", err)
 		}
 
-		// TODO
-		// if err := appConfig.validateConfig(); err != nil {
-		// 	log.Fatalf("App Config Validation Failed: %v", err)
-		// }
+		if err := appConfig.validateConfig(&dbSchema); err != nil {
+			log.Fatalf("App Config Validation Failed: %v", err)
+		}
 
 		appPath := filepath.Join(basePath, "app")
 

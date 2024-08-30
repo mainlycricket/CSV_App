@@ -780,3 +780,17 @@ func capitalize(text string) string {
 
 	return strings.ToUpper(string(text[0])) + text[1:]
 }
+
+func convertAnyArrToStrArr(array []any) ([]string, error) {
+	res := make([]string, 0, len(array))
+
+	for _, item := range array {
+		strVal, ok := item.(string)
+		if !ok {
+			return nil, fmt.Errorf(`failed to typecast %v into string`, item)
+		}
+		res = append(res, strVal)
+	}
+
+	return res, nil
+}

@@ -1,3 +1,0 @@
-P:Course-Id,NF:college_id,N:Course-Name, Lateral Allowed,NF:added_by
-course_1,college_1,B. Tech., true,jethalal
-course_2,college_1,M. Tech., false,jethalal

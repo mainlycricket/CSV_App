@@ -1,4 +1,0 @@
-P:Branch Id, N:Branch Name, NF:college_id,NF:Course Id, Teachers,NF:added_by,F:HoD
-branch_1,Computer Science,college_1,course_1,"[""HA"",""PC""]",jethalal,cs_hod
-branch_2,Information Technology,college_1,course_1,"[""LD"",""RK""]",jethalal,it_hod
-branch_3,Civil Engineering,college_1,course_1,,jethalal,civil_hod

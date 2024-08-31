@@ -1,6 +1,0 @@
-P:username,N:password,N:role,college_id,course_id,branch_id,F:added_by
-superuser,secret,admin, , , ,
-jethalal,secret,principal,college_1,,,superuser
-cs_hod,secret,hod,college_1,course_1,branch_1,jethalal
-it_hod,secret,hod,college_1,course_1,branch_2,jethalal
-civil_hod,secret,hod,college_1,course_1,branch_3,jethalal

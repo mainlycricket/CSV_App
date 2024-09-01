@@ -353,6 +353,8 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 			return fmt.Errorf(`"%s" table not found in schema`, tableName)
 		}
 
+		var tokenFields []string
+
 		if userField := tableConfig.UserField; len(userField) > 0 {
 			if authTable.TableName == "" {
 				return fmt.Errorf(`userField exists in "%s" table without authTable`, tableName)
@@ -365,6 +367,7 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 			if userFieldCol.ForeignTable != appConfig.AuthTable || userFieldCol.ForeignField != authTable.PrimaryKey {
 				return fmt.Errorf(`user field "%s" in "%s" table schema is not referencing "username" in auth table`, userField, tableName)
 			}
+			tokenFields = append(tokenFields, userField)
 		}
 
 		if len(tableConfig.OrgFields) > 0 && authTable.TableName == "" {
@@ -379,6 +382,7 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 			if !slices.Contains(appConfig.OrgFields, authField) {
 				return fmt.Errorf(`org field "%s" not found in appConfig orgFields`, tableField)
 			}
+			tokenFields = append(tokenFields, tableField)
 		}
 
 		if err := tableConfig.ReadAllConfig.validateReadConfig(dbSchema, tableName); err != nil {
@@ -389,11 +393,11 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 			return fmt.Errorf(`invalid readByPkConfig in "%s" table: %w`, tableName, err)
 		}
 
-		if err := tableConfig.ReadAuth.validateAuthInfo(rolesEnum, table.Columns); err != nil {
+		if err := tableConfig.ReadAuth.validateAuthInfo(rolesEnum, tokenFields); err != nil {
 			return fmt.Errorf(`invalid read auth for %s table: %w`, tableName, err)
 		}
 
-		if err := tableConfig.WriteAuth.validateAuthInfo(rolesEnum, table.Columns); err != nil {
+		if err := tableConfig.WriteAuth.validateAuthInfo(rolesEnum, tokenFields); err != nil {
 			return fmt.Errorf(`invalid write auth for %s table: %w`, tableName, err)
 		}
 
@@ -407,8 +411,14 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 
 func (readConfig *ReadConfig) validateReadConfig(dbSchema *DB, tableName string) error {
 	for _, field := range readConfig.Columns {
-		if _, exists := dbSchema.Tables[tableName].Columns[field]; !exists {
+		column, exists := dbSchema.Tables[tableName].Columns[field]
+
+		if !exists {
 			return fmt.Errorf(`"%s" field not found in table columns`, field)
+		}
+
+		if column.Hash {
+			return fmt.Errorf(`"%s" field has hash enabled`, field)
 		}
 	}
 
@@ -418,6 +428,9 @@ func (readConfig *ReadConfig) validateReadConfig(dbSchema *DB, tableName string)
 		}
 
 		column := dbSchema.Tables[tableName].Columns[tableField]
+		if column.Hash {
+			return fmt.Errorf(`"%s" foreign field has hash enabled`, tableField)
+		}
 
 		foreignTable := dbSchema.Tables[column.ForeignField]
 		for _, foreignField := range foreignFields {
@@ -430,7 +443,7 @@ func (readConfig *ReadConfig) validateReadConfig(dbSchema *DB, tableName string)
 	return nil
 }
 
-func (authInfo *AuthInfo) validateAuthInfo(rolesEnum []string, tableColumns map[string]Column) error {
+func (authInfo *AuthInfo) validateAuthInfo(rolesEnum, tokenFields []string) error {
 	rolesAuthFlag := len(authInfo.AllowedRoles) > 0
 
 	if !authInfo.BasicAuth && (rolesAuthFlag || len(authInfo.Priviliges) > 0) {
@@ -444,8 +457,8 @@ func (authInfo *AuthInfo) validateAuthInfo(rolesEnum []string, tableColumns map[
 	}
 
 	for field, explicitSetters := range authInfo.Priviliges {
-		if _, exists := tableColumns[field]; !exists {
-			return fmt.Errorf(`invalid priviliges "%s" field not present table schema`, field)
+		if !slices.Contains(tokenFields, field) {
+			return fmt.Errorf(`invalid priviliges "%s" field, neither an userField nor an orgField`, field)
 		}
 
 		for _, explicitSetter := range explicitSetters {

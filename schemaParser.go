@@ -38,11 +38,6 @@ func generateInititalSchema() error {
 
 	csvFiles := make(map[string]bool, 5)
 
-	appConfig := AppCongif{
-		SchemaPath: filepath.Join(dataPath, "schema.json"),
-		Tables:     make(map[string]TableConfig, 5),
-	}
-
 	for _, file := range dirList {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".csv") {
 			continue
@@ -93,14 +88,13 @@ func generateInititalSchema() error {
 	}
 
 	dbSchema.setForeignKeys(primaryKeys)
-	appConfig.setReadConfig(&dbSchema)
 
-	if err := writeJsonFile(appConfig.SchemaPath, dbSchema); err != nil {
+	schemaFilePath := filepath.Join(dataPath, "appConfig.json")
+	if err := writeJsonFile(schemaFilePath, dbSchema); err != nil {
 		return err
 	}
 
-	err = writeJsonFile(filepath.Join(dataPath, "appConfig.json"), appConfig)
-	return err
+	return nil
 }
 
 func (dbSchema *DB) setForeignKeys(primaryKeys map[string]string) {
@@ -494,6 +488,11 @@ func (dbSchema *DB) validateSchema() error {
 				column.values = make(map[string]bool)
 			}
 
+			// hash
+			if column.Hash && (column.DataType == "text" || column.DataType == "text[]" || column.Unique) {
+				return fmt.Errorf(`invalid hashing flag in %s column. only non-unique text, text[] columns can be hashed`, columnName)
+			}
+
 			table.Columns[columnName] = column
 		}
 
@@ -509,26 +508,32 @@ func (dbSchema *DB) validateSchema() error {
 	return nil
 }
 
-func (appConfig *AppCongif) setReadConfig(dbSchema *DB) {
+func (appConfig *AppCongif) setTables(dbSchema *DB) {
 	for tableName, table := range dbSchema.Tables {
 		columns := make([]string, 0, len(table.Columns))
 		foreignColumns := map[string][]string{}
 
 		for columnName, column := range table.Columns {
-			columns = append(columns, columnName)
+			if !column.Hash {
+				columns = append(columns, columnName)
+			}
 
 			foreignTableName := column.ForeignTable
 
-			if len(foreignTableName) > 0 && foreignTableName != "__" {
+			if len(foreignTableName) > 0 {
+				var foreignColumnNames []string
+
 				if foreignTable, ok := dbSchema.Tables[foreignTableName]; ok {
-					foreignColumnNames := make([]string, 0, len(foreignTable.Columns))
+					foreignColumnNames = make([]string, 0, len(foreignTable.Columns))
 
-					for foreignColumnName := range foreignTable.Columns {
-						foreignColumnNames = append(foreignColumnNames, foreignColumnName)
+					for foreignColumnName, foreignColumn := range foreignTable.Columns {
+						if !foreignColumn.Hash {
+							foreignColumnNames = append(foreignColumnNames, foreignColumnName)
+						}
 					}
-
-					foreignColumns[columnName] = foreignColumnNames
 				}
+
+				foreignColumns[columnName] = foreignColumnNames
 			}
 		}
 

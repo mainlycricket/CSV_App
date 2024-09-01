@@ -47,7 +47,7 @@ CREATE TABLE "login" (
 	 "college_id" text,
 	 "course_id" text,
 	 "password" text NOT NULL,
-	 "role" text NOT NULL,
+	 "role" text CHECK ( "role" IN (array['admin', 'principal', 'hod']::text[]) ) NOT NULL,
 	 "username" text PRIMARY KEY);
 
 -- CREATE TABLE students
@@ -74,14 +74,11 @@ INSERT INTO "college" ("college_id", "college_name", "principal_id")
 VALUES
 ('college_1', 'IIT Delhi', 'jethalal');
 
--- DATA INSERTION "subjects"
-INSERT INTO "subjects" ("Subject_Id", "Subject_Name", "college_id", "course_id", "Branch_Id", "added_by")
+-- DATA INSERTION "courses"
+INSERT INTO "courses" ("Course_Id", "college_id", "Course_Name", "Lateral_Allowed", "added_by")
 VALUES
-(1, 'DS', 'college_1', 'course_1', 'branch_1', 'cs_hod'),
-(2, 'COA', 'college_1', 'course_1', 'branch_1', 'jethalal'),
-(3, 'WT', 'college_1', 'course_1', 'branch_2', 'it_hod'),
-(4, 'Java', 'college_1', 'course_1', 'branch_2', 'jethalal'),
-(5, 'RCC', 'college_1', 'course_1', 'branch_3', 'civil_hod');
+('course_1', 'college_1', 'B. Tech.', true, 'jethalal'),
+('course_2', 'college_1', 'M. Tech.', false, 'jethalal');
 
 -- DATA INSERTION "branches"
 INSERT INTO "branches" ("Branch_Id", "Branch_Name", "college_id", "Course_Id", "Teachers", "added_by", "HoD")
@@ -90,12 +87,6 @@ VALUES
 ('branch_2', 'Information Technology', 'college_1', 'course_1', array['LD', 'RK']::text[], 'jethalal', 'it_hod'),
 ('branch_3', 'Civil Engineering', 'college_1', 'course_1', NULL, 'jethalal', 'civil_hod');
 
--- DATA INSERTION "courses"
-INSERT INTO "courses" ("Course_Id", "college_id", "Course_Name", "Lateral_Allowed", "added_by")
-VALUES
-('course_1', 'college_1', 'B. Tech.', true, 'jethalal'),
-('course_2', 'college_1', 'M. Tech.', false, 'jethalal');
-
 -- DATA INSERTION "students"
 INSERT INTO "students" ("Student_Id", "Student_Name", "Student_Father", "college_id", "Course_Id", "Branch_Id", "added_by")
 VALUES
@@ -103,6 +94,15 @@ VALUES
 (2, 'Akshay', 'Nand', 'college_1', 'course_1', 'branch_1', 'cs_hod'),
 (3, 'Saurabh', 'Jagganath', 'college_1', 'course_1', 'branch_2', 'it_hod'),
 (4, 'Harsh', 'Ramesh', 'college_1', 'course_1', 'branch_3', 'civil_hod');
+
+-- DATA INSERTION "subjects"
+INSERT INTO "subjects" ("Subject_Id", "Subject_Name", "college_id", "course_id", "Branch_Id", "added_by")
+VALUES
+(1, 'DS', 'college_1', 'course_1', 'branch_1', 'cs_hod'),
+(2, 'COA', 'college_1', 'course_1', 'branch_1', 'jethalal'),
+(3, 'WT', 'college_1', 'course_1', 'branch_2', 'it_hod'),
+(4, 'Java', 'college_1', 'course_1', 'branch_2', 'jethalal'),
+(5, 'RCC', 'college_1', 'course_1', 'branch_3', 'civil_hod');
 
 -- DATA INSERTION "TypeTest"
 INSERT INTO "TypeTest" ("Int", "String", "Float", "Date", "Time", "DateTime", "Bool", "Int_Arr", "Str_Arr", "Float_arr", "Date_arr", "Time_Arr", "Datetime_Arr", "Bool_Arr")
@@ -115,11 +115,11 @@ VALUES
 -- DATA INSERTION "login"
 INSERT INTO "login" ("username", "password", "role", "college_id", "course_id", "branch_id", "added_by")
 VALUES
-('superuser', '$2a$10$dVDpdr50WzvBVyvP54fY/ukYboookNvft76FU7qPi.QFAD2qvOX.u', 'admin', NULL, NULL, NULL, NULL),
-('jethalal', '$2a$10$evs4PTQj9PVltrbupLp0QuWzis6Vf6I8S72HW8TSbTyn63B1zwqlO', 'principal', 'college_1', NULL, NULL, 'superuser'),
-('cs_hod', '$2a$10$JBDn86kFsKRu/hjtvh/s.u54lwn2SrG.enul97d0bCnv7e0k8Im7m', 'hod', 'college_1', 'course_1', 'branch_1', 'jethalal'),
-('it_hod', '$2a$10$lBe/Bi4xQv5GtspJUmHJq.1VddXnhJdifZTlsP1wCsPKkof2phxfC', 'hod', 'college_1', 'course_1', 'branch_2', 'jethalal'),
-('civil_hod', '$2a$10$QwTH0nky6Y6HnVrBinQyA.DkJWmpKKs4i0yDBCVYO6aZT3XRafFhG', 'hod', 'college_1', 'course_1', 'branch_3', 'jethalal');
+('superuser', '$2a$10$ODy7lG7cx9p2cAoa0kEcluNvoe2Eiqj7AZmCmrAceEOoDsqwnSpI6', 'admin', NULL, NULL, NULL, NULL),
+('jethalal', '$2a$10$vuIzdhGd/GkKi3Jx13RsFuE2xot6YbwSl.p/l0VmCmaLmmcNw.h3.', 'principal', 'college_1', NULL, NULL, 'superuser'),
+('cs_hod', '$2a$10$FaFfIioPTfxitjHoAGpjnOc73RQk2rR0/0UW918IbImsDn8LL4YCu', 'hod', 'college_1', 'course_1', 'branch_1', 'jethalal'),
+('it_hod', '$2a$10$K4Vzv1Ng0fhNaWqSyNS7JubeuLpqDZqMMaQp8e10BmWDHYFP4xIkC', 'hod', 'college_1', 'course_1', 'branch_2', 'jethalal'),
+('civil_hod', '$2a$10$3lKF/e1jqFssJy.00WsndeZ0mxfQFC50PsHLodspmWefULxhVbXs2', 'hod', 'college_1', 'course_1', 'branch_3', 'jethalal');
 
 -- branches Table Foreign Keys
 ALTER TABLE "branches"

@@ -248,7 +248,7 @@ func writeTableRows(filePath string, table *Table, writer *bufio.Writer, channel
 				return
 			}
 
-			if column.Hash && val != nil && (column.DataType == "text" || column.DataType == "text[]") {
+			if column.Hash && val != nil {
 				hashedVal, err := hashText(val, column.DataType)
 
 				if err != nil {

@@ -35,16 +35,24 @@ func main() {
 
 		schemaFilePath := filepath.Join(basePath, "data", "schema.json")
 
-		err = readJsonFile(schemaFilePath, &dbSchema)
-
-		if err != nil {
+		if err := readJsonFile(schemaFilePath, &dbSchema); err != nil {
 			log.Fatalf("Failed to parse DB schema: %v", err)
 		}
 
-		err = dbSchema.validateSchema()
-
-		if err != nil {
+		if err := dbSchema.validateSchema(); err != nil {
 			log.Fatalf("Schema Validation Failed: %v", err)
+		}
+
+		appConfig := AppCongif{
+			SchemaPath: schemaFilePath,
+			Tables:     make(map[string]TableConfig, len(dbSchema.Tables)),
+		}
+
+		appConfig.setTables(&dbSchema)
+
+		appConfigFilePath := filepath.Join(basePath, "data", "appConfig.json")
+		if err := writeJsonFile(appConfigFilePath, appConfig); err != nil {
+			log.Fatalf("Failed to write appConfig.json: %v", err)
 		}
 
 		insertionBuffer, err := dbSchema.dataInsertion()

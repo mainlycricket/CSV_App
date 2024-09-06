@@ -115,7 +115,6 @@ func TestColumn_validateDefaultValue(t *testing.T) {
 		maxIndividual interface{}
 		minArrLen     int
 		maxArrLen     int
-		enumMap       map[any]bool
 		values        map[string]bool
 		lookup        map[string]int
 	}
@@ -151,7 +150,7 @@ func TestColumn_validateDefaultValue(t *testing.T) {
 		},
 		{
 			name:    "invalid text",
-			fields:  fields{DataType: "text", Default: "text", enumMap: map[any]bool{"other": true}},
+			fields:  fields{DataType: "text", Default: "text", Enums: []any{"other"}},
 			wantErr: true,
 		},
 	}
@@ -172,7 +171,6 @@ func TestColumn_validateDefaultValue(t *testing.T) {
 				maxIndividual: tt.fields.maxIndividual,
 				minArrLen:     tt.fields.minArrLen,
 				maxArrLen:     tt.fields.maxArrLen,
-				enumMap:       tt.fields.enumMap,
 				values:        tt.fields.values,
 				lookup:        tt.fields.lookup,
 			}
@@ -199,7 +197,6 @@ func TestColumn_validateValArrLen(t *testing.T) {
 		maxIndividual interface{}
 		minArrLen     int
 		maxArrLen     int
-		enumMap       map[any]bool
 		values        map[string]bool
 		lookup        map[string]int
 	}
@@ -266,7 +263,6 @@ func TestColumn_validateValArrLen(t *testing.T) {
 				maxIndividual: tt.fields.maxIndividual,
 				minArrLen:     tt.fields.minArrLen,
 				maxArrLen:     tt.fields.maxArrLen,
-				enumMap:       tt.fields.enumMap,
 				values:        tt.fields.values,
 				lookup:        tt.fields.lookup,
 			}
@@ -376,7 +372,6 @@ func TestColumn_validateEnums(t *testing.T) {
 		maxIndividual interface{}
 		minArrLen     int
 		maxArrLen     int
-		enumMap       map[any]bool
 		values        map[string]bool
 		lookup        map[string]int
 	}
@@ -423,7 +418,6 @@ func TestColumn_validateEnums(t *testing.T) {
 				maxIndividual: tt.fields.maxIndividual,
 				minArrLen:     tt.fields.minArrLen,
 				maxArrLen:     tt.fields.maxArrLen,
-				enumMap:       tt.fields.enumMap,
 				values:        tt.fields.values,
 				lookup:        tt.fields.lookup,
 			}
@@ -450,7 +444,6 @@ func TestColumn_validateValueByConstraints(t *testing.T) {
 		maxIndividual interface{}
 		minArrLen     int
 		maxArrLen     int
-		enumMap       map[any]bool
 		values        map[string]bool
 		lookup        map[string]int
 	}
@@ -471,7 +464,7 @@ func TestColumn_validateValueByConstraints(t *testing.T) {
 	}{
 		{
 			name:    "invalid string",
-			fields:  fields{DataType: "text", enumMap: map[any]bool{"admin": true}},
+			fields:  fields{DataType: "text", Enums: []any{"admin"}},
 			args:    args{value: "user", insert: false},
 			want:    nil,
 			wantErr: true,
@@ -522,7 +515,6 @@ func TestColumn_validateValueByConstraints(t *testing.T) {
 				maxIndividual: tt.fields.maxIndividual,
 				minArrLen:     tt.fields.minArrLen,
 				maxArrLen:     tt.fields.maxArrLen,
-				enumMap:       tt.fields.enumMap,
 				values:        tt.fields.values,
 				lookup:        tt.fields.lookup,
 			}

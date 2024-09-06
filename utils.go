@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -179,7 +180,10 @@ func (column *Column) setMinMaxConstraint() error {
 // Individual elements are validated for array types
 func (column *Column) validateEnums() error {
 	datatype := strings.TrimSuffix(column.DataType, "[]")
-	column.enumMap = make(map[any]bool)
+
+	if len(column.Enums) > 25 {
+		return errors.New("array contains more than 25 values")
+	}
 
 	for idx, value := range column.Enums {
 		interfaceVal, ok := validateValueByType(value, datatype)
@@ -192,8 +196,6 @@ func (column *Column) validateEnums() error {
 		if err := column.validateValueByMinMax(interfaceVal); err != nil {
 			return err
 		}
-
-		column.enumMap[interfaceVal] = true
 	}
 
 	return nil
@@ -394,12 +396,11 @@ func (column *Column) validateValueByMinMax(value any) error {
 
 // checks if the provided value (non-array) is present in column enums
 func (column *Column) validateValueByEnum(value any) error {
-	if len(column.enumMap) == 0 {
+	if len(column.Enums) == 0 {
 		return nil
 	}
 
-	_, ok := column.enumMap[value]
-	if !ok {
+	if !slices.Contains(column.Enums, value) {
 		errorMessage := fmt.Sprintf("value %v not present in enum", value)
 		return errors.New(errorMessage)
 	}
@@ -535,8 +536,12 @@ func templateCheckConstraints(column Column, columnName string) string {
 	}
 
 	if len(column.Enums) > 0 {
-		formatted := templateValue(column.Enums, column.DataType+"[]")
-		args = append(args, fmt.Sprintf("\"%v\" IN (%v)", columnName, formatted))
+		var formattedValues []string
+		for _, val := range column.Enums {
+			formattedValue := templateValue(val, column.DataType)
+			formattedValues = append(formattedValues, formattedValue)
+		}
+		args = append(args, fmt.Sprintf(`"%s" IN (%s)`, columnName, strings.Join(formattedValues, ",")))
 	}
 
 	if len(args) == 0 {

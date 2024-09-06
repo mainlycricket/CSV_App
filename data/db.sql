@@ -47,7 +47,7 @@ CREATE TABLE "login" (
 	 "college_id" text,
 	 "course_id" text,
 	 "password" text NOT NULL,
-	 "role" text CHECK ( "role" IN (array['admin', 'principal', 'hod']::text[]) ) NOT NULL,
+	 "role" text CHECK ( "role" IN ('admin','principal','hod') ) NOT NULL,
 	 "username" text PRIMARY KEY);
 
 -- CREATE TABLE students
@@ -69,23 +69,11 @@ CREATE TABLE "subjects" (
 	 "college_id" text NOT NULL,
 	 "course_id" text NOT NULL);
 
--- DATA INSERTION "college"
-INSERT INTO "college" ("college_id", "college_name", "principal_id")
-VALUES
-('college_1', 'IIT Delhi', 'jethalal');
-
 -- DATA INSERTION "courses"
 INSERT INTO "courses" ("Course_Id", "college_id", "Course_Name", "Lateral_Allowed", "added_by")
 VALUES
 ('course_1', 'college_1', 'B. Tech.', true, 'jethalal'),
 ('course_2', 'college_1', 'M. Tech.', false, 'jethalal');
-
--- DATA INSERTION "branches"
-INSERT INTO "branches" ("Branch_Id", "Branch_Name", "college_id", "Course_Id", "Teachers", "added_by", "HoD")
-VALUES
-('branch_1', 'Computer Science', 'college_1', 'course_1', array['HA', 'PC']::text[], 'jethalal', 'cs_hod'),
-('branch_2', 'Information Technology', 'college_1', 'course_1', array['LD', 'RK']::text[], 'jethalal', 'it_hod'),
-('branch_3', 'Civil Engineering', 'college_1', 'course_1', NULL, 'jethalal', 'civil_hod');
 
 -- DATA INSERTION "students"
 INSERT INTO "students" ("Student_Id", "Student_Name", "Student_Father", "college_id", "Course_Id", "Branch_Id", "added_by")
@@ -104,6 +92,18 @@ VALUES
 (4, 'Java', 'college_1', 'course_1', 'branch_2', 'jethalal'),
 (5, 'RCC', 'college_1', 'course_1', 'branch_3', 'civil_hod');
 
+-- DATA INSERTION "branches"
+INSERT INTO "branches" ("Branch_Id", "Branch_Name", "college_id", "Course_Id", "Teachers", "added_by", "HoD")
+VALUES
+('branch_1', 'Computer Science', 'college_1', 'course_1', array['HA', 'PC']::text[], 'jethalal', 'cs_hod'),
+('branch_2', 'Information Technology', 'college_1', 'course_1', array['LD', 'RK']::text[], 'jethalal', 'it_hod'),
+('branch_3', 'Civil Engineering', 'college_1', 'course_1', NULL, 'jethalal', 'civil_hod');
+
+-- DATA INSERTION "college"
+INSERT INTO "college" ("college_id", "college_name", "principal_id")
+VALUES
+('college_1', 'IIT Delhi', 'jethalal');
+
 -- DATA INSERTION "TypeTest"
 INSERT INTO "TypeTest" ("Int", "String", "Float", "Date", "Time", "DateTime", "Bool", "Int_Arr", "Str_Arr", "Float_arr", "Date_arr", "Time_Arr", "Datetime_Arr", "Bool_Arr")
 VALUES
@@ -115,59 +115,91 @@ VALUES
 -- DATA INSERTION "login"
 INSERT INTO "login" ("username", "password", "role", "college_id", "course_id", "branch_id", "added_by")
 VALUES
-('superuser', '$2a$10$ODy7lG7cx9p2cAoa0kEcluNvoe2Eiqj7AZmCmrAceEOoDsqwnSpI6', 'admin', NULL, NULL, NULL, NULL),
-('jethalal', '$2a$10$vuIzdhGd/GkKi3Jx13RsFuE2xot6YbwSl.p/l0VmCmaLmmcNw.h3.', 'principal', 'college_1', NULL, NULL, 'superuser'),
-('cs_hod', '$2a$10$FaFfIioPTfxitjHoAGpjnOc73RQk2rR0/0UW918IbImsDn8LL4YCu', 'hod', 'college_1', 'course_1', 'branch_1', 'jethalal'),
-('it_hod', '$2a$10$K4Vzv1Ng0fhNaWqSyNS7JubeuLpqDZqMMaQp8e10BmWDHYFP4xIkC', 'hod', 'college_1', 'course_1', 'branch_2', 'jethalal'),
-('civil_hod', '$2a$10$3lKF/e1jqFssJy.00WsndeZ0mxfQFC50PsHLodspmWefULxhVbXs2', 'hod', 'college_1', 'course_1', 'branch_3', 'jethalal');
+('superuser', '$2a$10$oQvwsbkwNaV9XSBBh9.Zz.JvakrzWyFBobvPD90ubKXhq0hUqbouG', 'admin', NULL, NULL, NULL, NULL),
+('jethalal', '$2a$10$a25OdxurBV/Ka1S1si7/3e1LSF.9a8ARyN70umZsD.1CQDwEb8He.', 'principal', 'college_1', NULL, NULL, 'superuser'),
+('cs_hod', '$2a$10$q4KWNqA2Q0cpTuox5J72o.UoySrToT13nCcrJTgEgDiyvpRB71wXC', 'hod', 'college_1', 'course_1', 'branch_1', 'jethalal'),
+('it_hod', '$2a$10$BA9ySnT.JdXTMkGA0w61NOt.6cyMCbHQUQEwJqvyfc8vTTvY/V1W6', 'hod', 'college_1', 'course_1', 'branch_2', 'jethalal'),
+('civil_hod', '$2a$10$Ql9K7XfAPeSQ2rDm.3Mf8e3kcMzISXEoK2nAiustwElkGayb6EIhe', 'hod', 'college_1', 'course_1', 'branch_3', 'jethalal');
 
 -- branches Table Foreign Keys
 ALTER TABLE "branches"
 ADD CONSTRAINT "branches_Course_Id_fkey" FOREIGN KEY ("Course_Id")
-REFERENCES "courses" ("Course_Id"),
+REFERENCES "courses" ("Course_Id")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "branches_HoD_fkey" FOREIGN KEY ("HoD")
-REFERENCES "login" ("username"),
+REFERENCES "login" ("username")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "branches_added_by_fkey" FOREIGN KEY ("added_by")
-REFERENCES "login" ("username"),
+REFERENCES "login" ("username")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "branches_college_id_fkey" FOREIGN KEY ("college_id")
-REFERENCES "college" ("college_id");
+REFERENCES "college" ("college_id")
+ON UPDATE CASCADE
+ON DELETE CASCADE;
 
 -- college Table Foreign Keys
 ALTER TABLE "college"
 ADD CONSTRAINT "college_principal_id_fkey" FOREIGN KEY ("principal_id")
-REFERENCES "login" ("username");
+REFERENCES "login" ("username")
+ON UPDATE CASCADE
+ON DELETE CASCADE;
 
 -- courses Table Foreign Keys
 ALTER TABLE "courses"
 ADD CONSTRAINT "courses_added_by_fkey" FOREIGN KEY ("added_by")
-REFERENCES "login" ("username"),
+REFERENCES "login" ("username")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "courses_college_id_fkey" FOREIGN KEY ("college_id")
-REFERENCES "college" ("college_id");
+REFERENCES "college" ("college_id")
+ON UPDATE CASCADE
+ON DELETE CASCADE;
 
 -- login Table Foreign Keys
 ALTER TABLE "login"
 ADD CONSTRAINT "login_added_by_fkey" FOREIGN KEY ("added_by")
-REFERENCES "login" ("username");
+REFERENCES "login" ("username")
+ON UPDATE CASCADE
+ON DELETE CASCADE;
 
 -- students Table Foreign Keys
 ALTER TABLE "students"
 ADD CONSTRAINT "students_Branch_Id_fkey" FOREIGN KEY ("Branch_Id")
-REFERENCES "branches" ("Branch_Id"),
+REFERENCES "branches" ("Branch_Id")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "students_Course_Id_fkey" FOREIGN KEY ("Course_Id")
-REFERENCES "courses" ("Course_Id"),
+REFERENCES "courses" ("Course_Id")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "students_added_by_fkey" FOREIGN KEY ("added_by")
-REFERENCES "login" ("username"),
+REFERENCES "login" ("username")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "students_college_id_fkey" FOREIGN KEY ("college_id")
-REFERENCES "college" ("college_id");
+REFERENCES "college" ("college_id")
+ON UPDATE CASCADE
+ON DELETE CASCADE;
 
 -- subjects Table Foreign Keys
 ALTER TABLE "subjects"
 ADD CONSTRAINT "subjects_Branch_Id_fkey" FOREIGN KEY ("Branch_Id")
-REFERENCES "branches" ("Branch_Id"),
+REFERENCES "branches" ("Branch_Id")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "subjects_added_by_fkey" FOREIGN KEY ("added_by")
-REFERENCES "login" ("username"),
+REFERENCES "login" ("username")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "subjects_college_id_fkey" FOREIGN KEY ("college_id")
-REFERENCES "college" ("college_id"),
+REFERENCES "college" ("college_id")
+ON UPDATE CASCADE
+ON DELETE CASCADE,
 ADD CONSTRAINT "subjects_course_id_fkey" FOREIGN KEY ("course_id")
-REFERENCES "courses" ("Course_Id");
+REFERENCES "courses" ("Course_Id")
+ON UPDATE CASCADE
+ON DELETE CASCADE;
 

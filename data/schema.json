@@ -17,7 +17,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Bool_Arr": {
           "columnName": "Bool_Arr",
@@ -30,7 +32,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Date": {
           "columnName": "Date",
@@ -43,7 +47,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "DateTime": {
           "columnName": "DateTime",
@@ -56,7 +62,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Date_arr": {
           "columnName": "Date_arr",
@@ -69,7 +77,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Datetime_Arr": {
           "columnName": "Datetime_Arr",
@@ -82,7 +92,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Float": {
           "columnName": "Float",
@@ -95,7 +107,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Float_arr": {
           "columnName": "Float_arr",
@@ -108,7 +122,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Int": {
           "columnName": "Int",
@@ -121,7 +137,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Int_Arr": {
           "columnName": "Int_Arr",
@@ -134,7 +152,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Str_Arr": {
           "columnName": "Str_Arr",
@@ -147,7 +167,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "String": {
           "columnName": "String",
@@ -160,7 +182,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Time": {
           "columnName": "Time",
@@ -173,7 +197,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Time_Arr": {
           "columnName": "Time_Arr",
@@ -186,7 +212,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         }
       }
     },
@@ -206,7 +234,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Branch_Name": {
           "columnName": "Branch_Name",
@@ -219,7 +249,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Course_Id": {
           "columnName": "Course_Id",
@@ -232,7 +264,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "courses",
-          "foreignField": "Course_Id"
+          "foreignField": "Course_Id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "HoD": {
           "columnName": "HoD",
@@ -245,7 +279,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "login",
-          "foreignField": "username"
+          "foreignField": "username",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "Teachers": {
           "columnName": "Teachers",
@@ -258,7 +294,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "added_by": {
           "columnName": "added_by",
@@ -271,7 +309,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "login",
-          "foreignField": "username"
+          "foreignField": "username",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "college_id": {
           "columnName": "college_id",
@@ -284,7 +324,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "college",
-          "foreignField": "college_id"
+          "foreignField": "college_id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         }
       }
     },
@@ -304,7 +346,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "college_name": {
           "columnName": "college_name",
@@ -317,7 +361,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "principal_id": {
           "columnName": "principal_id",
@@ -330,7 +376,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "login",
-          "foreignField": "username"
+          "foreignField": "username",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         }
       }
     },
@@ -350,7 +398,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Course_Name": {
           "columnName": "Course_Name",
@@ -363,7 +413,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Lateral_Allowed": {
           "columnName": "Lateral_Allowed",
@@ -376,7 +428,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "added_by": {
           "columnName": "added_by",
@@ -389,7 +443,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "login",
-          "foreignField": "username"
+          "foreignField": "username",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "college_id": {
           "columnName": "college_id",
@@ -402,7 +458,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "college",
-          "foreignField": "college_id"
+          "foreignField": "college_id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         }
       }
     },
@@ -422,7 +480,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "login",
-          "foreignField": "username"
+          "foreignField": "username",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "branch_id": {
           "columnName": "branch_id",
@@ -435,7 +495,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "college_id": {
           "columnName": "college_id",
@@ -448,7 +510,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "course_id": {
           "columnName": "course_id",
@@ -461,7 +525,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "password": {
           "columnName": "password",
@@ -474,7 +540,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "role": {
           "columnName": "role",
@@ -487,7 +555,9 @@
           "enums": ["admin", "principal", "hod"],
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "username": {
           "columnName": "username",
@@ -500,7 +570,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         }
       }
     },
@@ -520,7 +592,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "branches",
-          "foreignField": "Branch_Id"
+          "foreignField": "Branch_Id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "Course_Id": {
           "columnName": "Course_Id",
@@ -533,7 +607,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "courses",
-          "foreignField": "Course_Id"
+          "foreignField": "Course_Id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "Student_Father": {
           "columnName": "Student_Father",
@@ -546,7 +622,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Student_Id": {
           "columnName": "Student_Id",
@@ -559,7 +637,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Student_Name": {
           "columnName": "Student_Name",
@@ -572,7 +652,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "added_by": {
           "columnName": "added_by",
@@ -585,7 +667,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "login",
-          "foreignField": "username"
+          "foreignField": "username",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "college_id": {
           "columnName": "college_id",
@@ -598,7 +682,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "college",
-          "foreignField": "college_id"
+          "foreignField": "college_id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         }
       }
     },
@@ -618,7 +704,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "branches",
-          "foreignField": "Branch_Id"
+          "foreignField": "Branch_Id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "Subject_Id": {
           "columnName": "Subject_Id",
@@ -631,7 +719,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "Subject_Name": {
           "columnName": "Subject_Name",
@@ -644,7 +734,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "",
-          "foreignField": ""
+          "foreignField": "",
+          "onUpdate": "",
+          "onDelete": ""
         },
         "added_by": {
           "columnName": "added_by",
@@ -657,7 +749,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "login",
-          "foreignField": "username"
+          "foreignField": "username",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "college_id": {
           "columnName": "college_id",
@@ -670,7 +764,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "college",
-          "foreignField": "college_id"
+          "foreignField": "college_id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         },
         "course_id": {
           "columnName": "course_id",
@@ -683,7 +779,9 @@
           "enums": null,
           "default": null,
           "foreignTable": "courses",
-          "foreignField": "Course_Id"
+          "foreignField": "Course_Id",
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         }
       }
     }

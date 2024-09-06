@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,7 +90,7 @@ func generateInititalSchema() error {
 
 	dbSchema.setForeignKeys(primaryKeys)
 
-	schemaFilePath := filepath.Join(dataPath, "appConfig.json")
+	schemaFilePath := filepath.Join(dataPath, "schema.json")
 	if err := writeJsonFile(schemaFilePath, dbSchema); err != nil {
 		return err
 	}
@@ -101,12 +102,14 @@ func (dbSchema *DB) setForeignKeys(primaryKeys map[string]string) {
 	for tableName, table := range dbSchema.Tables {
 		for columnName, column := range table.Columns {
 			if column.ForeignField == "__" {
-				referencedTable, ok := primaryKeys[columnName+":"+column.DataType]
-				if ok {
+				if referencedTable, ok := primaryKeys[columnName+":"+column.DataType]; ok {
 					column.ForeignTable = referencedTable
 					column.ForeignField = columnName
-					table.Columns[columnName] = column
 				}
+
+				column.OnUpdate = "CASCADE"
+				column.OnDelete = "CASCADE"
+				table.Columns[columnName] = column
 			}
 		}
 		dbSchema.Tables[tableName] = table
@@ -411,6 +414,7 @@ func (dbSchema *DB) validateSchema() error {
 		}
 
 		primaryKeyFlag := false
+		validCascadeOptions := []string{"CASCADE", "RESTRICT", "SET NULL", "SET DEFAULT", "NO ACTION"}
 
 		for columnName, column := range table.Columns {
 			if len(columnName) == 0 {
@@ -427,38 +431,6 @@ func (dbSchema *DB) validateSchema() error {
 			if validType := isValidTypeName(column.DataType); !validType {
 				errorMessage := fmt.Sprintf("invalid type for column %s in table %s", columnName, tableName)
 				return errors.New(errorMessage)
-			}
-
-			// Primary & Foreign Key
-			if columnName == table.PrimaryKey {
-				primaryKeyFlag = true
-			}
-
-			if len(column.ForeignField) > 0 || len(column.ForeignTable) > 0 {
-				referencedTable, ok := dbSchema.Tables[column.ForeignTable]
-
-				if !ok {
-					errorMessage := fmt.Sprintf("invalid referenced table by %s column in %s table", columnName, tableName)
-					return errors.New(errorMessage)
-				}
-
-				referredCol, ok := referencedTable.Columns[column.ForeignField]
-				if !ok {
-					errorMessage := fmt.Sprintf("invalid referenced column by %s column in %s table", columnName, tableName)
-					return errors.New(errorMessage)
-				}
-
-				if referencedTable.PrimaryKey != referredCol.ColumnName {
-					errorMessage := fmt.Sprintf("referenced column by %s column in %s table isn't primary key", columnName, tableName)
-					return errors.New(errorMessage)
-				}
-
-				if referredCol.DataType != column.DataType {
-					errorMessage := fmt.Sprintf("referenced column by %s column in %s table isn't of %s datatype", columnName, tableName, column.DataType)
-					return errors.New(errorMessage)
-				}
-
-				column.lookup = make(map[string]int)
 			}
 
 			// Set Min, Max Constraints
@@ -485,12 +457,71 @@ func (dbSchema *DB) validateSchema() error {
 					errorMessage := fmt.Sprintf("unique column %s has a default value in table %s", columnName, tableName)
 					return errors.New(errorMessage)
 				}
+
+				if column.Hash {
+					return fmt.Errorf(`unique column %s in table %s" has hash enabled`, columnName, tableName)
+				}
 				column.values = make(map[string]bool)
 			}
 
 			// hash
-			if column.Hash && (column.DataType == "text" || column.DataType == "text[]" || column.Unique) {
+			if column.Hash && (column.DataType != "text" && column.DataType != "text[]") {
 				return fmt.Errorf(`invalid hashing flag in %s column. only non-unique text, text[] columns can be hashed`, columnName)
+			}
+
+			// Primary & Foreign Key
+			if columnName == table.PrimaryKey {
+				primaryKeyFlag = true
+			}
+
+			if len(column.ForeignField) > 0 || len(column.ForeignTable) > 0 {
+				if column.Hash {
+					return fmt.Errorf(`foreign key column %s in table %s" has hash enabled`, columnName, tableName)
+				}
+
+				referencedTable, ok := dbSchema.Tables[column.ForeignTable]
+
+				if !ok {
+					errorMessage := fmt.Sprintf("invalid referenced table by %s column in %s table", columnName, tableName)
+					return errors.New(errorMessage)
+				}
+
+				referredCol, ok := referencedTable.Columns[column.ForeignField]
+				if !ok {
+					errorMessage := fmt.Sprintf("invalid referenced column by %s column in %s table", columnName, tableName)
+					return errors.New(errorMessage)
+				}
+
+				if referencedTable.PrimaryKey != referredCol.ColumnName {
+					errorMessage := fmt.Sprintf("referenced column by %s column in %s table isn't primary key", columnName, tableName)
+					return errors.New(errorMessage)
+				}
+
+				if referredCol.DataType != column.DataType {
+					errorMessage := fmt.Sprintf("referenced column by %s column in %s table isn't of %s datatype", columnName, tableName, column.DataType)
+					return errors.New(errorMessage)
+				}
+
+				column.OnDelete = strings.ToUpper(column.OnDelete)
+				column.OnUpdate = strings.ToUpper(column.OnUpdate)
+
+				if !slices.Contains(validCascadeOptions, column.OnDelete) {
+					return fmt.Errorf(`invalid onDelete for %s column in %s table`, columnName, tableName)
+				}
+				if !slices.Contains(validCascadeOptions, column.OnUpdate) {
+					return fmt.Errorf(`invalid onUpdate for %s column in %s table`, columnName, tableName)
+				}
+
+				if column.OnDelete == "SET DEFAULT" && referredCol.Default == nil {
+					return fmt.Errorf(`invalid onDelete for %s column in %s table: set_default requires a default value for the column %s in referenced table %s`, columnName, tableName, referredCol.ColumnName, referencedTable.TableName)
+				}
+				if column.OnUpdate == "SET DEFAULT" && referredCol.Default == nil {
+					return fmt.Errorf(`invalid onUpdate for %s column in %s table: set_default requires a default value for the column %s in referenced table %s`, columnName, tableName, referredCol.ColumnName, referencedTable.TableName)
+				}
+
+				column.lookup = make(map[string]int)
+			} else if column.OnDelete != "" || column.OnUpdate != "" {
+				return fmt.Errorf(`non foreign-key column %s in %s table can't have onDelete/onUpdate set`, columnName, tableName)
 			}
 
 			table.Columns[columnName] = column

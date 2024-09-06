@@ -22,13 +22,14 @@ type Column struct {
 	Max           string        `json:"max"`
 	Enums         []interface{} `json:"enums"`
 	Default       interface{}   `json:"default"`
-	ForeignTable  string        `json:"foreignTable"` // if datatype is NOT array
-	ForeignField  string        `json:"foreignField"` // if datatype is NOT array
+	ForeignTable  string        `json:"foreignTable"`
+	ForeignField  string        `json:"foreignField"`
+	OnUpdate      string        `json:"onUpdate"`
+	OnDelete      string        `json:"onDelete"`
 	minIndividual interface{}
 	maxIndividual interface{}
-	minArrLen     int // 0 indicates unset
-	maxArrLen     int // 0 indicates unset
-	enumMap       map[any]bool
+	minArrLen     int             // 0 indicates unset
+	maxArrLen     int             // 0 indicates unset
 	values        map[string]bool // to check unique values
 	lookup        map[string]int  // for foreign look up
 }

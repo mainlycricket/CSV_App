@@ -179,6 +179,8 @@ ALTER TABLE "{{$tableName}}"
 {{- if $column.ForeignField }}
 ADD CONSTRAINT "{{ $tableName }}_{{ $columnName }}_fkey" FOREIGN KEY ("{{ $columnName }}")
 REFERENCES "{{$column.ForeignTable}}" ("{{$column.ForeignField}}")
+ON UPDATE {{ $column.OnUpdate }}
+ON DELETE {{ $column.OnDelete }}
 
 {{- $count = decrease $count -}}
 {{- if $count -}}

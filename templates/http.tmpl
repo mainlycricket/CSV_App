@@ -32,16 +32,17 @@ func getJsonResponse(success bool, message string, data any) []byte {
 }
 
 func startServer() *http.Server {
-	{{ range $table := . }}
+	{{- range $table := . -}}
 		{{ if .IsAuthTable }}
 		// AUTH routes
 		http.HandleFunc("POST /__auth/register", api_create_ {{- .TableName -}})
 		http.HandleFunc("POST /__auth/login", api_login_user)
 		http.HandleFunc("GET /__auth/logout", api_logout_user)
+		http.HandleFunc("GET /__auth/refresh", api_refresh_token);
 		{{ else }}
 		// {{ .TableName }} routes
-		http.HandleFunc("POST /{{- .TableName -}}", api_create_ {{- .TableName -}})
-		{{ end }}
+		http.HandleFunc("POST /{{- .TableName -}}", api_create_ {{- .TableName -}});
+		{{- end -}}
 		http.HandleFunc("GET /{{- .TableName -}}", api_getAll_ {{- .TableName -}})
 		http.HandleFunc("GET /{{- .TableName -}}ByPK", api_getByPk_ {{- .TableName -}})
 		http.HandleFunc("PUT /{{- .TableName -}}", api_update_ {{- .TableName -}})
@@ -60,6 +61,7 @@ func startServer() *http.Server {
 	// AUTH handler functions
 	{{ template "login" $table }}
 	{{ template "logout" $table }}
+	{{ template "refreshToken" }}
 	{{ end }}
 	// {{ .TableName }} handler functions
 	{{ template "create" $table }}
@@ -742,6 +744,41 @@ func api_logout_user(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(getJsonResponse(true, "logged out successfully", nil))
+}
+{{ end }}
+
+{{- define "refreshToken" }}
+func api_refresh_token(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	cookie, err := r.Cookie("access_token")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	if _, err = validateSignedToken(cookie.Value); err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	refreshedCookie := &http.Cookie{
+		Name:     "access_token",
+		Value:    cookie.Value,
+		Expires:  time.Now().Add(30 * 24 * time.Hour), // expires in 30 days
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		Secure:   true,
+	}
+
+	http.SetCookie(w, refreshedCookie)
+	w.WriteHeader(http.StatusOK)
+	w.Write(getJsonResponse(true, "token refreshed successfully", nil))
 }
 {{ end }}
 

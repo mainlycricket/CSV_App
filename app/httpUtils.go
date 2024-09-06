@@ -32,10 +32,8 @@ func getJsonResponse(success bool, message string, data any) []byte {
 }
 
 func startServer() *http.Server {
-
 	// TypeTest routes
 	http.HandleFunc("POST /TypeTest", api_create_TypeTest)
-
 	http.HandleFunc("GET /TypeTest", api_getAll_TypeTest)
 	http.HandleFunc("GET /TypeTestByPK", api_getByPk_TypeTest)
 	http.HandleFunc("PUT /TypeTest", api_update_TypeTest)
@@ -43,7 +41,6 @@ func startServer() *http.Server {
 
 	// branches routes
 	http.HandleFunc("POST /branches", api_create_branches)
-
 	http.HandleFunc("GET /branches", api_getAll_branches)
 	http.HandleFunc("GET /branchesByPK", api_getByPk_branches)
 	http.HandleFunc("PUT /branches", api_update_branches)
@@ -51,7 +48,6 @@ func startServer() *http.Server {
 
 	// college routes
 	http.HandleFunc("POST /college", api_create_college)
-
 	http.HandleFunc("GET /college", api_getAll_college)
 	http.HandleFunc("GET /collegeByPK", api_getByPk_college)
 	http.HandleFunc("PUT /college", api_update_college)
@@ -59,7 +55,6 @@ func startServer() *http.Server {
 
 	// courses routes
 	http.HandleFunc("POST /courses", api_create_courses)
-
 	http.HandleFunc("GET /courses", api_getAll_courses)
 	http.HandleFunc("GET /coursesByPK", api_getByPk_courses)
 	http.HandleFunc("PUT /courses", api_update_courses)
@@ -69,7 +64,7 @@ func startServer() *http.Server {
 	http.HandleFunc("POST /__auth/register", api_create_login)
 	http.HandleFunc("POST /__auth/login", api_login_user)
 	http.HandleFunc("GET /__auth/logout", api_logout_user)
-
+	http.HandleFunc("GET /__auth/refresh", api_refresh_token)
 	http.HandleFunc("GET /login", api_getAll_login)
 	http.HandleFunc("GET /loginByPK", api_getByPk_login)
 	http.HandleFunc("PUT /login", api_update_login)
@@ -77,7 +72,6 @@ func startServer() *http.Server {
 
 	// students routes
 	http.HandleFunc("POST /students", api_create_students)
-
 	http.HandleFunc("GET /students", api_getAll_students)
 	http.HandleFunc("GET /studentsByPK", api_getByPk_students)
 	http.HandleFunc("PUT /students", api_update_students)
@@ -85,7 +79,6 @@ func startServer() *http.Server {
 
 	// subjects routes
 	http.HandleFunc("POST /subjects", api_create_subjects)
-
 	http.HandleFunc("GET /subjects", api_getAll_subjects)
 	http.HandleFunc("GET /subjectsByPK", api_getByPk_subjects)
 	http.HandleFunc("PUT /subjects", api_update_subjects)
@@ -1315,6 +1308,39 @@ func api_logout_user(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(getJsonResponse(true, "logged out successfully", nil))
+}
+
+func api_refresh_token(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	cookie, err := r.Cookie("access_token")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	if _, err = validateSignedToken(cookie.Value); err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	refreshedCookie := &http.Cookie{
+		Name:     "access_token",
+		Value:    cookie.Value,
+		Expires:  time.Now().Add(30 * 24 * time.Hour), // expires in 30 days
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		Secure:   true,
+	}
+
+	http.SetCookie(w, refreshedCookie)
+	w.WriteHeader(http.StatusOK)
+	w.Write(getJsonResponse(true, "token refreshed successfully", nil))
 }
 
 // login handler functions

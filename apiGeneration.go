@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"text/template"
+	"time"
 )
 
 type TemplateTableData struct {
@@ -68,14 +69,15 @@ func (dbSchema *DB) getTemplatesMetaData(basePath, appPath string, appConfig *Ap
 			templatePath: filepath.Join(basePath, "db.tmpl"),
 			data:         slicedTableData,
 			templateFuncs: template.FuncMap{
-				"HasSuffix":         strings.HasSuffix,
-				"increase":          increase,
-				"decrease":          decrease,
-				"getTableColumns":   getTableColumnsFn(slicedTableData),
-				"getOrgFields":      getOrgFields,
-				"capitalize":        capitalize,
-				"sliceContains":     slices.Contains[[]string, string],
-				"getColumnDataType": getDataTypeFn(slicedTableData),
+				"HasSuffix":                strings.HasSuffix,
+				"increase":                 increase,
+				"decrease":                 decrease,
+				"getTableColumns":          getTableColumnsFn(slicedTableData),
+				"getOrgFields":             getOrgFields,
+				"capitalize":               capitalize,
+				"sliceContains":            slices.Contains[[]string, string],
+				"getColumnDataType":        getDataTypeFn(slicedTableData),
+				"getProtectedValuesByRole": getProtectedValuesByRole,
 			},
 		},
 
@@ -98,12 +100,15 @@ func (dbSchema *DB) getTemplatesMetaData(basePath, appPath string, appConfig *Ap
 			filePath:     filepath.Join(appPath, "httpUtils.go"),
 			templatePath: filepath.Join(basePath, "http.tmpl"),
 			templateFuncs: template.FuncMap{
-				"getPkType":    getPkType,
-				"HasSuffix":    strings.HasSuffix,
-				"increase":     increase,
-				"decrease":     decrease,
-				"capitalize":   capitalize,
-				"getOrgFields": getOrgFields,
+				"getPkType":          getPkType,
+				"HasSuffix":          strings.HasSuffix,
+				"TrimPrefix":         strings.TrimPrefix,
+				"increase":           increase,
+				"decrease":           decrease,
+				"capitalize":         capitalize,
+				"getOrgFields":       getOrgFields,
+				"getDbType":          getDbType,
+				"templateProtectMap": templateProtectMap,
 			},
 			data: slicedTableData,
 		},
@@ -287,7 +292,7 @@ func getDataTypeFn(tablesData []TemplateTableData) func(tableName, columnName st
 	}
 }
 
-func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
+func (appConfig *AppCongif) validateAppConfig(dbSchema *DB) error {
 	if appConfig.SchemaPath != filepath.Join(dbSchema.BasePath, "schema.json") {
 		return fmt.Errorf("invalid schema path: %v", appConfig.SchemaPath)
 	}
@@ -322,7 +327,7 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 		}
 
 		roleField, ok := authTable.Columns["role"]
-		if ok && roleField.DataType != "text" || roleField.Hash || !roleField.NotNull || len(roleField.Enums) == 0 {
+		if ok && (roleField.DataType != "text" || roleField.Hash || !roleField.NotNull || len(roleField.Enums) == 0) {
 			return errors.New(`"role" field should be a not null text field with enums enabled and hash disabled`)
 		}
 
@@ -338,7 +343,7 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 	}
 
 	if authTable.TableName != "" {
-		rolesEnum, _ = convertAnyArrToStrArr(authTable.Columns["role"].Enums)
+		rolesEnum, _ = assertAnyArr[string](authTable.Columns["role"].Enums)
 	}
 
 	// Tables Validaton
@@ -353,38 +358,6 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 			return fmt.Errorf(`"%s" table not found in schema`, tableName)
 		}
 
-		var tokenFields []string
-
-		if userField := tableConfig.UserField; len(userField) > 0 {
-			if authTable.TableName == "" {
-				return fmt.Errorf(`userField exists in "%s" table without authTable`, tableName)
-			}
-
-			userFieldCol, ok := table.Columns[userField]
-			if !ok {
-				return fmt.Errorf(`user field "%s" not found in "%s" table schema`, userField, tableName)
-			}
-			if userFieldCol.ForeignTable != appConfig.AuthTable || userFieldCol.ForeignField != authTable.PrimaryKey {
-				return fmt.Errorf(`user field "%s" in "%s" table schema is not referencing "username" in auth table`, userField, tableName)
-			}
-			tokenFields = append(tokenFields, userField)
-		}
-
-		if len(tableConfig.OrgFields) > 0 && authTable.TableName == "" {
-			return fmt.Errorf(`orgFields exists in "%s" table without authTable`, tableName)
-		}
-
-		for tableField, authField := range tableConfig.OrgFields {
-			if _, exists := table.Columns[tableField]; !exists {
-				return fmt.Errorf(`org field "%s" not found in "%s" table schema`, tableField, tableName)
-			}
-
-			if !slices.Contains(appConfig.OrgFields, authField) {
-				return fmt.Errorf(`org field "%s" not found in appConfig orgFields`, tableField)
-			}
-			tokenFields = append(tokenFields, tableField)
-		}
-
 		if err := tableConfig.ReadAllConfig.validateReadConfig(dbSchema, tableName); err != nil {
 			return fmt.Errorf(`invalid readAllConfig in "%s" table: %w`, tableName, err)
 		}
@@ -393,12 +366,24 @@ func (appConfig *AppCongif) validateConfig(dbSchema *DB) error {
 			return fmt.Errorf(`invalid readByPkConfig in "%s" table: %w`, tableName, err)
 		}
 
-		if err := tableConfig.ReadAuth.validateAuthInfo(rolesEnum, tokenFields); err != nil {
-			return fmt.Errorf(`invalid read auth for %s table: %w`, tableName, err)
+		if err := tableConfig.ReadAllAuth.validateAuthInfo(rolesEnum, appConfig.OrgFields, table.Columns, authTable, tableName == authTable.TableName); err != nil {
+			return fmt.Errorf(`invalid readAllAuth for %s table: %w`, tableName, err)
 		}
 
-		if err := tableConfig.WriteAuth.validateAuthInfo(rolesEnum, tokenFields); err != nil {
-			return fmt.Errorf(`invalid write auth for %s table: %w`, tableName, err)
+		if err := tableConfig.ReadByPkAuth.validateAuthInfo(rolesEnum, appConfig.OrgFields, table.Columns, authTable, tableName == authTable.TableName); err != nil {
+			return fmt.Errorf(`invalid readByPkAuth for %s table: %w`, tableName, err)
+		}
+
+		if err := tableConfig.InsertAuth.validateAuthInfo(rolesEnum, appConfig.OrgFields, table.Columns, authTable, tableName == authTable.TableName); err != nil {
+			return fmt.Errorf(`invalid insertAuth for %s table: %w`, tableName, err)
+		}
+
+		if err := tableConfig.UpdateAuth.validateAuthInfo(rolesEnum, appConfig.OrgFields, table.Columns, authTable, tableName == authTable.TableName); err != nil {
+			return fmt.Errorf(`invalid updateAuth for %s table: %w`, tableName, err)
+		}
+
+		if err := tableConfig.DeleteAuth.validateAuthInfo(rolesEnum, appConfig.OrgFields, table.Columns, authTable, tableName == authTable.TableName); err != nil {
+			return fmt.Errorf(`invalid deleteAuth for %s table: %w`, tableName, err)
 		}
 
 		if tableConfig.DefaultPagination == 0 {
@@ -443,32 +428,288 @@ func (readConfig *ReadConfig) validateReadConfig(dbSchema *DB, tableName string)
 	return nil
 }
 
-func (authInfo *AuthInfo) validateAuthInfo(rolesEnum, tokenFields []string) error {
-	rolesAuthFlag := len(authInfo.AllowedRoles) > 0
+func (authInfo *AuthInfo) validateAuthInfo(rolesEnum, appOrgFields []string, columnsMap map[string]Column, authTable Table, isAuthTable bool) error {
+	if userField := authInfo.UserField; len(userField) > 0 {
+		if authTable.TableName == "" {
+			return fmt.Errorf(`user field "%s" exists without authTable`, userField)
+		}
 
-	if !authInfo.BasicAuth && (rolesAuthFlag || len(authInfo.Priviliges) > 0) {
-		return errors.New("basic auth should be true to enable role based authorization and priviliges configuration")
+		userFieldCol, ok := columnsMap[userField]
+		if !ok {
+			return fmt.Errorf(`user field "%s" not found in table schema`, userField)
+		}
+
+		flag := false
+
+		if isAuthTable && userFieldCol.ColumnName == authTable.PrimaryKey {
+			flag = true
+		}
+
+		if !flag && (userFieldCol.ForeignTable != authTable.TableName || userFieldCol.ForeignField != authTable.PrimaryKey) {
+			return fmt.Errorf(`user field "%s" in table schema is not referencing "username" in auth table`, userField)
+		}
+	}
+
+	if len(authInfo.OrgFields) > 0 && len(appOrgFields) == 0 {
+		return fmt.Errorf(`orgFields exist without application level orgFields`)
+	}
+
+	for tableField, authField := range authInfo.OrgFields {
+		if _, exists := columnsMap[tableField]; !exists {
+			return fmt.Errorf(`org field "%s" not found in table schema`, tableField)
+		}
+
+		if !slices.Contains(appOrgFields, authField) {
+			return fmt.Errorf(`org field "%s" not found in appConfig orgFields`, tableField)
+		}
+	}
+
+	if !authInfo.BasicAuth && len(authInfo.AllowedRoles) > 0 {
+		return errors.New("basic auth should be true to enable role based authorization")
 	}
 
 	for _, role := range authInfo.AllowedRoles {
 		if !slices.Contains(rolesEnum, role) {
-			return fmt.Errorf(`invalid allowedRoles "%s" role not present in roles enum of auth table`, role)
+			return fmt.Errorf(`invalid allowedRoles: "%s" role not present in roles enum of auth table`, role)
 		}
 	}
 
 	for field, explicitSetters := range authInfo.Priviliges {
-		if !slices.Contains(tokenFields, field) {
-			return fmt.Errorf(`invalid priviliges "%s" field, neither an userField nor an orgField`, field)
+		if field != authInfo.UserField && authInfo.OrgFields[field] == "" {
+			return fmt.Errorf(`invalid priviliges: "%s" field, neither an userField nor an orgField`, field)
 		}
 
 		for _, explicitSetter := range explicitSetters {
-			if rolesAuthFlag && !slices.Contains(authInfo.AllowedRoles, explicitSetter) {
-				return fmt.Errorf(`explicitSetter "%s" for "%s" field isn't authorized`, explicitSetter, field)
-			} else if !slices.Contains(rolesEnum, explicitSetter) {
-				return fmt.Errorf(`explicitSetter "%s" for "%s" field isn't found in roles enum`, explicitSetter, field)
+			if explicitSetter == "" {
+				if authInfo.BasicAuth {
+					return fmt.Errorf(`invalid priviliges: "%s" field allows non-logged-in users to be explicit setters, but basic auth is enabled`, field)
+				}
+				continue
+			}
+
+			if len(authInfo.AllowedRoles) > 0 && !slices.Contains(authInfo.AllowedRoles, explicitSetter) {
+				return fmt.Errorf(`invalid priviliges: explicitSetter "%s" for "%s" field isn't found in allowedRoles`, explicitSetter, field)
+			}
+
+			if len(authInfo.AllowedRoles) == 0 && !slices.Contains(rolesEnum, explicitSetter) {
+				return fmt.Errorf(`invalid priviliges: explicitSetter "%s" for "%s" field isn't found in login roles enum`, explicitSetter, field)
+			}
+		}
+	}
+
+	for field, valueSettersMap := range authInfo.ProtectedFields {
+		column, ok := columnsMap[field]
+		if !ok {
+			return fmt.Errorf(`invalid protectedFields: "%s" column is not present in table schema`, field)
+		}
+
+		if len(column.Enums) == 0 && !strings.HasPrefix(column.DataType, "boolean") {
+			return fmt.Errorf(`invalid protectedFields: "%s" column should be either boolean/boolean[] or have Enums enabled`, field)
+		}
+
+		if err := validateProtectMap(valueSettersMap, column.DataType, column.Enums); err != nil {
+			return fmt.Errorf(`invalid protectedFields: "%s" column has invalid values %w`, field, err)
+		}
+
+		for _, explicitSetters := range valueSettersMap {
+			for _, explicitSetter := range explicitSetters {
+				if explicitSetter == "" {
+					if authInfo.BasicAuth {
+						return fmt.Errorf(`invalid protectedFields: "%s" field allows non-logged-in users to be explicit setters, but basic auth is enabled`, field)
+					}
+
+					continue
+				}
+
+				if len(authInfo.AllowedRoles) > 0 && !slices.Contains(authInfo.AllowedRoles, explicitSetter) {
+					return fmt.Errorf(`invalid protectedFields: explicitSetter "%s" for "%s" field isn't found in allowedRoles`, explicitSetter, field)
+				}
+
+				if len(authInfo.AllowedRoles) == 0 && !slices.Contains(rolesEnum, explicitSetter) {
+					return fmt.Errorf(`invalid protectedFields: explicitSetter "%s" for "%s" field isn't found in login roles enum`, explicitSetter, field)
+				}
 			}
 		}
 	}
 
 	return nil
+}
+
+func templateProtectMap(m map[string][]string, datatype string) string {
+	datatype = strings.TrimSuffix(datatype, "[]")
+
+	switch datatype {
+	case "integer":
+		res, _ := assertProtectedMap[int64](m, datatype)
+		return fmt.Sprintf("%#v", res)
+	case "real":
+		res, _ := assertProtectedMap[float64](m, datatype)
+		return fmt.Sprintf("%#v", res)
+	case "text":
+		res, _ := assertProtectedMap[string](m, datatype)
+		return fmt.Sprintf("%#v", res)
+	case "boolean":
+		res, _ := assertProtectedMap[bool](m, datatype)
+		return fmt.Sprintf("%#v", res)
+	case "date":
+		res, _ := assertProtectedMap[time.Time](m, datatype)
+		return fmt.Sprintf("%#v", res)
+	case "time":
+		res, _ := assertProtectedMap[time.Time](m, datatype)
+		return fmt.Sprintf("%#v", res)
+	case "timestamptz":
+		res, _ := assertProtectedMap[time.Time](m, datatype)
+		return fmt.Sprintf("%#v", res)
+	}
+
+	return ""
+}
+
+func validateProtectMap(m map[string][]string, datatype string, enums []any) error {
+	datatype = strings.TrimSuffix(datatype, "[]")
+
+	switch datatype {
+	case "integer":
+		castedMap, err := assertProtectedMap[int64](m, datatype)
+		if err != nil {
+			return err
+		}
+
+		castedEnums, _ := assertAnyArr[int64](enums)
+		for castedValue := range castedMap {
+			if !slices.Contains(castedEnums, castedValue) {
+				return fmt.Errorf(`%v value not found in column enums`, castedValue)
+			}
+		}
+	case "real":
+		castedMap, err := assertProtectedMap[float64](m, datatype)
+		if err != nil {
+			return err
+		}
+
+		castedEnums, _ := assertAnyArr[float64](enums)
+		for castedValue := range castedMap {
+			if !slices.Contains(castedEnums, castedValue) {
+				return fmt.Errorf(`%v value not found in column enums`, castedValue)
+			}
+		}
+	case "text":
+		castedMap, err := assertProtectedMap[string](m, datatype)
+		if err != nil {
+			return err
+		}
+
+		castedEnums, _ := assertAnyArr[string](enums)
+		for castedValue := range castedMap {
+			if !slices.Contains(castedEnums, castedValue) {
+				return fmt.Errorf(`%v value not found in column enums`, castedValue)
+			}
+		}
+	case "boolean":
+		if len(enums) == 0 {
+			enums = []any{true, false}
+		}
+
+		castedMap, err := assertProtectedMap[bool](m, datatype)
+		if err != nil {
+			return err
+		}
+
+		castedEnums, _ := assertAnyArr[bool](enums)
+		for castedValue := range castedMap {
+			if !slices.Contains(castedEnums, castedValue) {
+				return fmt.Errorf(`%v value not found in column enums`, castedValue)
+			}
+		}
+	case "date":
+		castedMap, err := assertProtectedMap[time.Time](m, datatype)
+		if err != nil {
+			return err
+		}
+
+		castedEnums, _ := assertAnyArr[time.Time](enums)
+		for castedValue := range castedMap {
+			if !slices.Contains(castedEnums, castedValue) {
+				return fmt.Errorf(`%v value not found in column enums`, castedValue)
+			}
+		}
+	case "time":
+		castedMap, err := assertProtectedMap[time.Time](m, datatype)
+		if err != nil {
+			return err
+		}
+
+		castedEnums, _ := assertAnyArr[time.Time](enums)
+		for castedValue := range castedMap {
+			if !slices.Contains(castedEnums, castedValue) {
+				return fmt.Errorf(`%v value not found in column enums`, castedValue)
+			}
+		}
+	case "timestamptz":
+		castedMap, err := assertProtectedMap[time.Time](m, datatype)
+		if err != nil {
+			return err
+		}
+
+		castedEnums, _ := assertAnyArr[time.Time](enums)
+		for castedValue := range castedMap {
+			if !slices.Contains(castedEnums, castedValue) {
+				return fmt.Errorf(`%v value not found in column enums`, castedValue)
+			}
+		}
+	default:
+		return fmt.Errorf(`unsupported datatype: %s`, datatype)
+	}
+
+	return nil
+}
+
+func assertProtectedMap[T comparable](m map[string][]string, datatype string) (map[T][]string, error) {
+	res := make(map[T][]string, len(m))
+
+	for strVal, roles := range m {
+		interfaceVal, err := typeConversionFuncs[datatype](strVal)
+
+		if err != nil {
+			return nil, fmt.Errorf(`failed to type cast value %s`, strVal)
+		}
+
+		casted, ok := interfaceVal.(T)
+		if !ok {
+			return nil, fmt.Errorf(`failed to type assert value %s`, strVal)
+		}
+
+		res[casted] = roles
+	}
+
+	return res, nil
+}
+
+// returns negative map[role][]values i.e. values which can't be set by a particular role
+func getProtectedValuesByRole(m map[string][]string, datatype string) map[string][]any {
+	data := make(map[string][]any, 5)
+	var roles []string
+
+	// get all roles
+	for _, allowedRoles := range m {
+		for _, role := range allowedRoles {
+			if !slices.Contains(roles, role) {
+				roles = append(roles, role)
+			}
+		}
+	}
+
+	datatype = strings.TrimPrefix(datatype, "[]")
+
+	for value, allowedRoles := range m {
+		interfaceVal, _ := typeConversionFuncs[datatype](value)
+
+		for _, role := range roles {
+			if !slices.Contains(allowedRoles, role) {
+				data[role] = append(data[role], interfaceVal)
+			}
+		}
+	}
+
+	return data
 }

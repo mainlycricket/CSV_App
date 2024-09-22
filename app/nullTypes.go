@@ -54,6 +54,20 @@ func (t *CustomNullDate) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (t *CustomNullDate) GetValue() time.Time {
+	return t.Time
+}
+
+func getCustomNullDateArrValues(arr []CustomNullDate) []time.Time {
+	res := make([]time.Time, len(arr))
+
+	for idx, value := range arr {
+		res[idx] = value.GetValue()
+	}
+
+	return res
+}
+
 type CustomNullTime struct {
 	sql.NullTime
 }
@@ -99,6 +113,20 @@ func (t *CustomNullTime) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (t *CustomNullTime) GetValue() time.Time {
+	return t.Time
+}
+
+func getCustomNullTimeArrValues(arr []CustomNullTime) []time.Time {
+	res := make([]time.Time, len(arr))
+
+	for idx, value := range arr {
+		res[idx] = value.GetValue()
+	}
+
+	return res
 }
 
 type CustomNullDateTime struct {
@@ -148,6 +176,20 @@ func (t *CustomNullDateTime) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (t *CustomNullDateTime) GetValue() time.Time {
+	return t.Time
+}
+
+func getCustomNullDateTimeArrValues(arr []CustomNullDateTime) []time.Time {
+	res := make([]time.Time, len(arr))
+
+	for idx, value := range arr {
+		res[idx] = value.GetValue()
+	}
+
+	return res
+}
+
 type CustomNullBool struct {
 	sql.NullBool
 }
@@ -173,6 +215,20 @@ func (t *CustomNullBool) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (t *CustomNullBool) GetValue() bool {
+	return t.Bool
+}
+
+func getCustomNullBoolArrValues(arr []CustomNullBool) []bool {
+	res := make([]bool, len(arr))
+
+	for idx, value := range arr {
+		res[idx] = value.GetValue()
+	}
+
+	return res
 }
 
 type CustomNullFloat struct {
@@ -202,6 +258,20 @@ func (t *CustomNullFloat) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (t *CustomNullFloat) GetValue() float64 {
+	return t.Float64
+}
+
+func getCustomNullFloatArrValues(arr []CustomNullFloat) []float64 {
+	res := make([]float64, len(arr))
+
+	for idx, value := range arr {
+		res[idx] = value.GetValue()
+	}
+
+	return res
+}
+
 type CustomNullInt struct {
 	sql.NullInt64
 }
@@ -229,6 +299,20 @@ func (t *CustomNullInt) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (t *CustomNullInt) GetValue() int64 {
+	return t.Int64
+}
+
+func getCustomNullIntArrValues(arr []CustomNullInt) []int64 {
+	res := make([]int64, len(arr))
+
+	for idx, value := range arr {
+		res[idx] = value.GetValue()
+	}
+
+	return res
+}
+
 type CustomNullString struct {
 	sql.NullString
 }
@@ -251,4 +335,18 @@ func (t *CustomNullString) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (t *CustomNullString) GetValue() string {
+	return t.String
+}
+
+func getCustomNullStringArrValues(arr []CustomNullString) []string {
+	res := make([]string, len(arr))
+
+	for idx, value := range arr {
+		res[idx] = value.GetValue()
+	}
+
+	return res
 }

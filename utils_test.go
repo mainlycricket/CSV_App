@@ -76,7 +76,7 @@ func Test_validateValueByType(t *testing.T) {
 		{
 			name:         "integer",
 			args:         args{value: 1, datatype: "integer"},
-			convertedVal: 1,
+			convertedVal: int64(1),
 			success:      true,
 		},
 		{
@@ -113,8 +113,8 @@ func TestColumn_validateDefaultValue(t *testing.T) {
 		ForeignField  string
 		minIndividual interface{}
 		maxIndividual interface{}
-		minArrLen     int
-		maxArrLen     int
+		minArrLen     int64
+		maxArrLen     int64
 		values        map[string]bool
 		lookup        map[string]int
 	}
@@ -195,8 +195,8 @@ func TestColumn_validateValArrLen(t *testing.T) {
 		ForeignField  string
 		minIndividual interface{}
 		maxIndividual interface{}
-		minArrLen     int
-		maxArrLen     int
+		minArrLen     int64
+		maxArrLen     int64
 		values        map[string]bool
 		lookup        map[string]int
 	}
@@ -213,8 +213,8 @@ func TestColumn_validateValArrLen(t *testing.T) {
 		{
 			name:    "valid integer arr",
 			fields:  fields{minArrLen: 2, maxArrLen: 5},
-			args:    args{value: []any{1, 2, 3}},
-			want:    []any{1, 2, 3},
+			args:    args{value: []any{int64(1), int64(2), int64(3)}},
+			want:    []any{int64(1), int64(2), int64(3)},
 			wantErr: false,
 		},
 		{
@@ -225,7 +225,7 @@ func TestColumn_validateValArrLen(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "valid string",
+			name:    "valid float string",
 			fields:  fields{minArrLen: 2, maxArrLen: 5},
 			args:    args{value: "[1.2, 2.5, 3.4]"},
 			want:    []any{1.2, 2.5, 3.4},
@@ -302,7 +302,7 @@ func Test_compareTypeValues(t *testing.T) {
 	}{
 		{
 			name:  "a > b integer",
-			args:  args{a: 6, b: 5, datatype: "integer"},
+			args:  args{a: int64(6), b: int64(5), datatype: "integer"},
 			want:  1,
 			want1: true,
 		},
@@ -370,8 +370,8 @@ func TestColumn_validateEnums(t *testing.T) {
 		ForeignField  string
 		minIndividual interface{}
 		maxIndividual interface{}
-		minArrLen     int
-		maxArrLen     int
+		minArrLen     int64
+		maxArrLen     int64
 		values        map[string]bool
 		lookup        map[string]int
 	}
@@ -382,7 +382,7 @@ func TestColumn_validateEnums(t *testing.T) {
 	}{
 		{
 			name:    "valid int enum",
-			fields:  fields{Enums: []any{1, 2, 3}, DataType: "integer", minIndividual: 1},
+			fields:  fields{Enums: []any{1, 2, 3}, DataType: "integer", minIndividual: int64(1)},
 			wantErr: false,
 		},
 		{
@@ -442,8 +442,8 @@ func TestColumn_validateValueByConstraints(t *testing.T) {
 		ForeignField  string
 		minIndividual interface{}
 		maxIndividual interface{}
-		minArrLen     int
-		maxArrLen     int
+		minArrLen     int64
+		maxArrLen     int64
 		values        map[string]bool
 		lookup        map[string]int
 	}
@@ -487,7 +487,7 @@ func TestColumn_validateValueByConstraints(t *testing.T) {
 			name:    "valid int arr",
 			fields:  fields{DataType: "integer[]", minArrLen: 3, maxArrLen: 3},
 			args:    args{value: "[1, 2, 3]", insert: false},
-			want:    []any{1, 2, 3},
+			want:    []any{int64(1), int64(2), int64(3)},
 			wantErr: false,
 		},
 		{

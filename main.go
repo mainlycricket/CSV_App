@@ -101,7 +101,7 @@ func main() {
 			log.Fatalf("Schema Validation Failed: %v", err)
 		}
 
-		if err := appConfig.validateConfig(&dbSchema); err != nil {
+		if err := appConfig.validateAppConfig(&dbSchema); err != nil {
 			log.Fatalf("App Config Validation Failed: %v", err)
 		}
 

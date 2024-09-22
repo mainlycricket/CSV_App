@@ -28,8 +28,8 @@ type Column struct {
 	OnDelete      string        `json:"onDelete"`
 	minIndividual interface{}
 	maxIndividual interface{}
-	minArrLen     int             // 0 indicates unset
-	maxArrLen     int             // 0 indicates unset
+	minArrLen     int64           // 0 indicates unset
+	maxArrLen     int64           // 0 indicates unset
 	values        map[string]bool // to check unique values
 	lookup        map[string]int  // for foreign look up
 }
@@ -42,22 +42,28 @@ type AppCongif struct {
 }
 
 type TableConfig struct {
-	UserField         string            `json:"userField"`
-	OrgFields         map[string]string `json:"orgFields"`
-	ReadAuth          AuthInfo          `json:"readAuth"`  // GET
-	WriteAuth         AuthInfo          `json:"writeAuth"` // INSERT, UPDATE, DELETE
-	ReadAllConfig     ReadConfig        `json:"readAllConfig"`
-	ReadByPkConfig    ReadConfig        `json:"readByPkConfig"`
-	DefaultPagination int               `json:"defaultPagination"`
+	InsertAuth        AuthInfo   `json:"insertAuth"`
+	ReadAllAuth       AuthInfo   `json:"readAllAuth"`
+	ReadByPkAuth      AuthInfo   `json:"readByPkAuth"`
+	UpdateAuth        AuthInfo   `json:"updateAuth"`
+	DeleteAuth        AuthInfo   `json:"deleteAuth"`
+	ReadAllConfig     ReadConfig `json:"readAllConfig"`
+	ReadByPkConfig    ReadConfig `json:"readByPkConfig"`
+	DefaultPagination int        `json:"defaultPagination"`
 }
 
 type AuthInfo struct {
-	BasicAuth    bool                `json:"basicAuth"`
-	AllowedRoles []string            `json:"allowedRoles"`
-	Priviliges   map[string][]string `json:"priviliges"`
+	UserField       string              `json:"userField"`
+	OrgFields       map[string]string   `json:"orgFields"`
+	BasicAuth       bool                `json:"basicAuth"`
+	AllowedRoles    []string            `json:"allowedRoles"`
+	Priviliges      map[string][]string `json:"priviliges"`
+	ProtectedFields ProtectedFieldsInfo `json:"protectedFields"`
 }
 
 type ReadConfig struct {
 	Columns        []string            `json:"columns"`
 	ForeignColumns map[string][]string `json:"foreignColumns"`
 }
+
+type ProtectedFieldsInfo map[string]map[string][]string

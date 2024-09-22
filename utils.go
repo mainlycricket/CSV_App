@@ -17,7 +17,7 @@ import (
 )
 
 var basicTypes = map[string]interface{}{
-	"integer": int(0),
+	"integer": int64(0),
 	"real":    float64(0),
 	"text":    "",
 	"boolean": false,
@@ -40,7 +40,7 @@ var typeConversionFuncs = map[string]func(string) (any, error){
 		if len(value) == 0 {
 			return nil, nil
 		}
-		return strconv.Atoi(value)
+		return strconv.ParseInt(value, 10, 64)
 	},
 	"real": func(value string) (any, error) {
 		if len(value) == 0 {
@@ -119,11 +119,11 @@ func (column *Column) setMinMaxConstraint() error {
 		}
 
 		if minLenInterface != nil {
-			column.minArrLen = minLenInterface.(int)
+			column.minArrLen = minLenInterface.(int64)
 		}
 
 		if maxLenInterface != nil {
-			column.maxArrLen = maxLenInterface.(int)
+			column.maxArrLen = maxLenInterface.(int64)
 		}
 
 		if column.minArrLen > column.maxArrLen {
@@ -245,7 +245,7 @@ func validateValueByType(value any, datatype string) (any, bool) {
 
 	switch datatype {
 	case "integer":
-		parsed, ok = convertedInterface.(int)
+		parsed, ok = convertedInterface.(int64)
 	case "real":
 		parsed, ok = convertedInterface.(float64)
 	case "text":
@@ -355,7 +355,7 @@ func (column *Column) validateValArrLen(value any) ([]any, error) {
 	}
 
 	if column.minArrLen != 0 {
-		res, ok := compareTypeValues(len(interfaceArr), column.minArrLen, "integer")
+		res, ok := compareTypeValues(int64(len(interfaceArr)), column.minArrLen, "integer")
 		if !ok || res == -1 {
 			errorMessage := fmt.Sprintf("need at least %v elements in array", column.minArrLen)
 			return nil, errors.New(errorMessage)
@@ -363,7 +363,7 @@ func (column *Column) validateValArrLen(value any) ([]any, error) {
 	}
 
 	if column.maxArrLen != 0 {
-		res, ok := compareTypeValues(len(interfaceArr), column.maxArrLen, "integer")
+		res, ok := compareTypeValues(int64(len(interfaceArr)), column.maxArrLen, "integer")
 		if !ok || res == 1 {
 			errorMessage := fmt.Sprintf("need at most %v elements in array", column.maxArrLen)
 			return nil, errors.New(errorMessage)
@@ -436,12 +436,12 @@ func compareTypeValues(a, b any, datatype string) (int, bool) {
 		}
 
 	case "integer":
-		parsedA, ok := a.(int)
+		parsedA, ok := a.(int64)
 		if !ok {
 			return 0, false
 		}
 
-		parsedB, ok := b.(int)
+		parsedB, ok := b.(int64)
 		if !ok {
 			return 0, false
 		}
@@ -786,15 +786,15 @@ func capitalize(text string) string {
 	return strings.ToUpper(string(text[0])) + text[1:]
 }
 
-func convertAnyArrToStrArr(array []any) ([]string, error) {
-	res := make([]string, 0, len(array))
+func assertAnyArr[T comparable](array []any) ([]T, error) {
+	res := make([]T, 0, len(array))
 
 	for _, item := range array {
-		strVal, ok := item.(string)
+		casted, ok := item.(T)
 		if !ok {
-			return nil, fmt.Errorf(`failed to typecast %v into string`, item)
+			return nil, fmt.Errorf(`failed to typecast %v %T`, item, casted)
 		}
-		res = append(res, strVal)
+		res = append(res, casted)
 	}
 
 	return res, nil

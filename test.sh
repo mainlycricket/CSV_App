@@ -7,6 +7,8 @@ set -e
 go test
 go build .
 
+cp ./data/schema.json ./data/schemaBackup.json
+cp ./data/appConfig.json ./data/appBackup.json
 ./CSV_App schema
 read -p "Press enter after reviewing schema.json"
 

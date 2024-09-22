@@ -54,8 +54,13 @@ CREATE FUNCTION validate_{{.}}_arr(
     not_null boolean DEFAULT FALSE,
     min_arr_len integer DEFAULT NULL,
     max_arr_len integer DEFAULT NULL,
+    {{ if eq . "text" }}
+    min_ind integer DEFAULT NULL, 
+    max_ind integer DEFAULT NULL,
+    {{ else }}
     min_ind {{.}} DEFAULT NULL, 
     max_ind {{.}} DEFAULT NULL,
+    {{ end }}
     enum_arr {{.}}[] DEFAULT NULL)
 RETURNS text AS $$
 DECLARE

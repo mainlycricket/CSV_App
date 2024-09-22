@@ -78,7 +78,7 @@ func getQueryClauseArgs(params url.Values, columnMap map[string]Column, tableNam
 		}
 
 		if _, ok := columnMap[columnName]; ok {
-			orderBy = append(orderBy, fmt.Sprintf(`"%s" %s`, columnName, order))
+			orderBy = append(orderBy, fmt.Sprintf(`"%s"."%s" %s`, tableName, columnName, order))
 		}
 	}
 
@@ -285,6 +285,40 @@ func authorizeRequest(r *http.Request, allowedRoles []string) (jwt.MapClaims, er
 	}
 
 	return claims, nil
+}
+
+func validateProtectedField[K comparable](info map[K][]string, value K, role string) bool {
+	allowedRoles, ok := info[value]
+
+	if !ok {
+		return true
+	}
+
+	return slices.Contains(allowedRoles, role)
+}
+
+func validateArrProtectedField[K comparable](info map[K][]string, arr []K, role string) bool {
+	for _, item := range arr {
+		allowedRoles, ok := info[item]
+
+		if ok && !slices.Contains(allowedRoles, role) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func protectedFieldsQueryArgs[K comparable](info map[K][]string, role string) []any {
+	var args []any
+
+	for value, allowedRoles := range info {
+		if !slices.Contains(allowedRoles, role) {
+			args = append(args, value)
+		}
+	}
+
+	return args
 }
 
 {{ end -}}

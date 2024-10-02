@@ -224,9 +224,66 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 	{{- end -}}
 	`
 
-	{{ $protectedFields := .TableConfig.ReadByPkAuth.ProtectedFields }}
+	{{ $ctxValDeclared := false }}
+	{{ $userField := .TableConfig.ReadAllAuth.UserField }}
+	{{ $orgFields := .TableConfig.ReadAllAuth.OrgFields }}
+
+	{{ if or $userField $orgFields }}
+		var tokenClauses []string
+	{{ end }}
+
+	{{ if $userField }}
+		{{ if not $ctxValDeclared }}
+			ctxVal := ctx.Value(ContextKey("{{ $userField }}"))
+			{{ $ctxValDeclared = true }}
+		{{ else }}
+			ctxVal = ctx.Value(ContextKey("{{ $userField }}"))
+		{{ end }}
+
+		if ctxVal != nil {
+			value := ctxVal.(string)
+			if len(value) > 0 {
+				args = append(args, value)
+				tokenClauses = append(tokenClauses, fmt.Sprintf(`"{{ $tableName }}"."{{ $userField }}" = $%d`, len(args)))
+			} else {
+				tokenClauses = append(tokenClauses, fmt.Sprintf(`"{{ $tableName }}"."{{ $userField }}" IS NULL`))
+			}
+		}
+	{{ end }}
+
+	{{ range $orgField, $tokenField := $orgFields }}
+		{{ if not $ctxValDeclared }}
+			ctxVal := ctx.Value(ContextKey("{{ $orgField }}"))
+			{{ $ctxValDeclared = true }}
+		{{ else }}
+			ctxVal = ctx.Value(ContextKey("{{ $orgField }}"))
+		{{ end }}
+
+		if ctxVal != nil {
+			value := ctxVal.(string)
+			if len(value) > 0 {
+				args = append(args, value)
+				tokenClauses = append(tokenClauses, fmt.Sprintf(`"{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args)))
+			} else {
+				tokenClauses = append(tokenClauses, fmt.Sprintf(`"{{ $tableName }}"."{{ $orgField }}" IS NULL`))
+			}
+		}
+	{{ end }}
+
+	{{ if or $userField $orgFields }}
+		if len(tokenClauses) > 0 {
+			if strings.HasPrefix(clause, " WHERE") {
+				clause = strings.TrimPrefix(clause, " WHERE")
+				clause = " WHERE " + strings.Join(tokenClauses, " AND ") + " AND " + clause
+			} else {
+				clause = " WHERE " + strings.Join(tokenClauses, " AND ") + clause
+			}
+		}
+	{{ end }}
+
+	{{ $protectedFields := .TableConfig.ReadAllAuth.ProtectedFields }}
 	{{ if $protectedFields }}
-		var protectClause []string
+		var protectClauses []string
 		role := ctx.Value(ContextKey("__role")).(string)
 		var rolesMap map[string][]interface{}
 		{{ range $column := .Columns }}
@@ -235,21 +292,21 @@ func db_readAll_ {{- .TableName -}} (ctx context.Context, clause string, args []
 				rolesMap = {{ printf "%#v" (getProtectedValuesByRole $valuesMap $column.DataType) }}
 				if disallowedValues := rolesMap[role]; len(disallowedValues) > 0 {
 					{{ if HasSuffix $column.DataType "[]" }}
-					protectClause = append(protectClause, fmt.Sprintf(`NOT "{{ $tableName }}"."{{ $column.ColumnName }}" @> ARRAY[%s]::{{ $column.DataType }}`,  getArgPlaceHolders(len(args) + 1, len(disallowedValues))))
+					protectClauses = append(protectClauses, fmt.Sprintf(`NOT "{{ $tableName }}"."{{ $column.ColumnName }}" @> ARRAY[%s]::{{ $column.DataType }}`,  getArgPlaceHolders(len(args) + 1, len(disallowedValues))))
 					{{ else }}
-					protectClause = append(protectClause, fmt.Sprintf(`"{{ $tableName }}"."{{ $column.ColumnName }}" NOT IN (%s)`,  getArgPlaceHolders(len(args) + 1, len(disallowedValues))))
+					protectClauses = append(protectClauses, fmt.Sprintf(`"{{ $tableName }}"."{{ $column.ColumnName }}" NOT IN (%s)`,  getArgPlaceHolders(len(args) + 1, len(disallowedValues))))
 					{{ end }}
 					args = append(args, disallowedValues...)
 				}
 			{{ end }}
 		{{ end }}
 
-		if len(protectClause) > 0 {
-			query += fmt.Sprintf(` WHERE %s`, strings.Join(protectClause, " AND "))
-
+		if len(protectClauses) > 0 {
 			if strings.HasPrefix(clause, " WHERE") {
 				clause = strings.TrimPrefix(clause, " WHERE")
-				clause = " AND" + clause
+				clause = " WHERE " + strings.Join(protectClauses, " AND ") + " AND " + clause
+			} else {
+				clause = " WHERE " + strings.Join(protectClauses, " AND ") + clause
 			}
 		}
 
@@ -448,8 +505,12 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 
 		if ctxVal != nil {
 			value := ctxVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+			if len(value) > 0 {
+				args = append(args, value)
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+			} else {
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" IS NULL`)
+			}
 		}
 	{{ end }}
 
@@ -463,8 +524,12 @@ func db_read_ {{- .TableName -}} _ByPK(ctx context.Context, id string) (Table_ {
 
 		if ctxVal != nil {
 			value := ctxVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
+			if len(value) > 0 {
+				args = append(args, value)
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
+			} else {
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" IS NULL`)
+			}
 		}
 	{{ end }}
 
@@ -632,8 +697,12 @@ func db_update_ {{- .TableName -}} (ctx context.Context, id string, item *Table_
 
 		if ctxVal != nil {
 			value := ctxVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+			if len(value) > 0 {
+				args = append(args, value)
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+			} else {
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" IS NULL`)
+			}
 		}
 	{{ end }}
 
@@ -647,8 +716,12 @@ func db_update_ {{- .TableName -}} (ctx context.Context, id string, item *Table_
 
 		if ctxVal != nil {
 			value := ctxVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
+			if len(value) > 0 {
+				args = append(args, value)
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
+			} else {
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" IS NULL`)
+			}
 		}
 	{{ end }}
 
@@ -725,8 +798,12 @@ func db_delete_ {{- .TableName -}} (ctx context.Context, id string) error {
 
 		if ctxVal != nil {
 			value := ctxVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+			if len(value) > 0 {
+				args = append(args, value)
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" = $%d`, len(args))
+			} else {
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $userField }}" IS NULL`)
+			}
 		}
 	{{ end }}
 
@@ -740,8 +817,12 @@ func db_delete_ {{- .TableName -}} (ctx context.Context, id string) error {
 
 		if ctxVal != nil {
 			value := ctxVal.(string)
-			args = append(args, value)
-			query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
+			if len(value) > 0 {
+				args = append(args, value)
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" = $%d`, len(args))
+			} else {
+				query += fmt.Sprintf(` AND "{{ $tableName }}"."{{ $orgField }}" IS NULL`)
+			}
 		}
 	{{ end }}
 

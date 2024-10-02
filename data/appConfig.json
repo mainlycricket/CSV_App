@@ -9,7 +9,7 @@
         "orgFields": null,
         "basicAuth": false,
         "allowedRoles": null,
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readAllAuth": {
@@ -17,7 +17,7 @@
         "orgFields": null,
         "basicAuth": false,
         "allowedRoles": null,
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readByPkAuth": {
@@ -25,7 +25,7 @@
         "orgFields": null,
         "basicAuth": false,
         "allowedRoles": null,
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "updateAuth": {
@@ -33,7 +33,7 @@
         "orgFields": null,
         "basicAuth": false,
         "allowedRoles": null,
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "deleteAuth": {
@@ -41,44 +41,44 @@
         "orgFields": null,
         "basicAuth": false,
         "allowedRoles": null,
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readAllConfig": {
         "columns": [
           "Str_Arr",
-          "Bool_Arr",
+          "Time_Arr",
+          "DateTime",
           "Datetime_Arr",
-          "Int_Arr",
-          "Bool",
           "Float_arr",
           "Int",
-          "String",
-          "Time",
-          "Time_Arr",
-          "Date",
-          "DateTime",
+          "Bool_Arr",
           "Date_arr",
-          "Float"
+          "Time",
+          "String",
+          "Bool",
+          "Date",
+          "Float",
+          "Int_Arr"
         ],
         "foreignColumns": null
       },
       "readByPkConfig": {
         "columns": [
           "Str_Arr",
-          "Bool_Arr",
+          "Time_Arr",
+          "DateTime",
           "Datetime_Arr",
-          "Int_Arr",
-          "Bool",
           "Float_arr",
           "Int",
-          "String",
-          "Time",
-          "Time_Arr",
-          "Date",
-          "DateTime",
+          "Bool_Arr",
           "Date_arr",
-          "Float"
+          "Time",
+          "String",
+          "Bool",
+          "Date",
+          "Float",
+          "Int_Arr"
         ],
         "foreignColumns": null
       },
@@ -90,7 +90,7 @@
         "orgFields": { "college_id": "college_id", "Course_Id": "course_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"]
         },
         "protectedFields": null
@@ -100,7 +100,7 @@
         "orgFields": { "college_id": "college_id", "Course_Id": "course_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"]
         },
         "protectedFields": null
@@ -110,7 +110,7 @@
         "orgFields": { "college_id": "college_id", "Course_Id": "course_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"]
         },
         "protectedFields": null
@@ -120,7 +120,7 @@
         "orgFields": { "college_id": "college_id", "Course_Id": "course_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"]
         },
         "protectedFields": null
@@ -130,83 +130,38 @@
         "orgFields": { "college_id": "college_id", "Course_Id": "course_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"]
         },
         "protectedFields": null
       },
       "readAllConfig": {
         "columns": [
+          "HoD",
           "Teachers",
-          "added_by",
           "college_id",
           "Branch_Id",
           "Branch_Name",
-          "Course_Id",
-          "HoD"
+          "Course_Id"
         ],
         "foreignColumns": {
-          "Course_Id": [
-            "Course_Name",
-            "Lateral_Allowed",
-            "added_by",
-            "college_id",
-            "Course_Id"
-          ],
-          "HoD": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ],
-          "added_by": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ],
-          "college_id": ["college_id", "college_name", "principal_id"]
+          "Course_Id": ["Course_Id", "Course_Name"],
+          "college_id": ["college_id", "college_name"]
         }
       },
       "readByPkConfig": {
         "columns": [
+          "HoD",
           "Teachers",
           "added_by",
           "college_id",
           "Branch_Id",
           "Branch_Name",
-          "Course_Id",
-          "HoD"
+          "Course_Id"
         ],
         "foreignColumns": {
-          "Course_Id": [
-            "Course_Name",
-            "Lateral_Allowed",
-            "added_by",
-            "college_id",
-            "Course_Id"
-          ],
-          "HoD": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ],
-          "added_by": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ],
-          "college_id": ["college_id", "college_name", "principal_id"]
+          "Course_Id": ["Course_Id", "Course_Name"],
+          "college_id": ["college_id", "college_name"]
         }
       },
       "defaultPagination": 20
@@ -217,7 +172,7 @@
         "orgFields": null,
         "basicAuth": true,
         "allowedRoles": ["admin"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readAllAuth": {
@@ -225,7 +180,7 @@
         "orgFields": null,
         "basicAuth": true,
         "allowedRoles": ["admin"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readByPkAuth": {
@@ -233,7 +188,7 @@
         "orgFields": null,
         "basicAuth": true,
         "allowedRoles": ["admin"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "updateAuth": {
@@ -241,7 +196,7 @@
         "orgFields": null,
         "basicAuth": true,
         "allowedRoles": ["admin"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "deleteAuth": {
@@ -249,34 +204,16 @@
         "orgFields": null,
         "basicAuth": true,
         "allowedRoles": ["admin"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readAllConfig": {
         "columns": ["college_id", "college_name", "principal_id"],
-        "foreignColumns": {
-          "principal_id": [
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id",
-            "role"
-          ]
-        }
+        "foreignColumns": null
       },
       "readByPkConfig": {
         "columns": ["college_id", "college_name", "principal_id"],
-        "foreignColumns": {
-          "principal_id": [
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id",
-            "role"
-          ]
-        }
+        "foreignColumns": null
       },
       "defaultPagination": 20
     },
@@ -286,7 +223,7 @@
         "orgFields": { "college_id": "college_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readAllAuth": {
@@ -294,7 +231,7 @@
         "orgFields": { "college_id": "college_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readByPkAuth": {
@@ -302,7 +239,7 @@
         "orgFields": { "college_id": "college_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "updateAuth": {
@@ -310,7 +247,7 @@
         "orgFields": { "college_id": "college_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "deleteAuth": {
@@ -318,46 +255,30 @@
         "orgFields": { "college_id": "college_id" },
         "basicAuth": true,
         "allowedRoles": ["principal"],
-        "priviliges": null,
+        "privileges": null,
         "protectedFields": null
       },
       "readAllConfig": {
         "columns": [
+          "added_by",
+          "college_id",
           "Course_Id",
           "Course_Name",
-          "Lateral_Allowed",
-          "added_by",
-          "college_id"
+          "Lateral_Allowed"
         ],
         "foreignColumns": {
-          "added_by": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ],
-          "college_id": ["college_id", "college_name", "principal_id"]
+          "college_id": ["college_id", "college_name"]
         }
       },
       "readByPkConfig": {
         "columns": [
+          "added_by",
+          "college_id",
           "Course_Id",
           "Course_Name",
-          "Lateral_Allowed",
-          "added_by",
-          "college_id"
+          "Lateral_Allowed"
         ],
         "foreignColumns": {
-          "added_by": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ],
           "college_id": ["college_id", "college_name", "principal_id"]
         }
       },
@@ -373,7 +294,7 @@
         },
         "basicAuth": false,
         "allowedRoles": null,
-        "priviliges": {
+        "privileges": {
           "college_id": ["", "admin"],
           "course_id": ["", "principal"],
           "branch_id": ["", "principal"]
@@ -395,7 +316,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["admin", "principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "college_id": ["admin"],
           "course_id": ["admin", "principal"],
           "branch_id": ["admin", "principal"]
@@ -404,7 +325,8 @@
           "role": {
             "principal": ["admin"],
             "hod": ["principal"],
-            "teacher": ["principal", "hod"]
+            "teacher": ["principal", "hod"],
+            "student": ["principal", "hod"]
           }
         }
       },
@@ -417,7 +339,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["admin", "principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "college_id": ["admin"],
           "course_id": ["admin", "principal"],
           "branch_id": ["admin", "principal"]
@@ -426,7 +348,8 @@
           "role": {
             "principal": ["admin"],
             "hod": ["principal"],
-            "teacher": ["principal", "hod"]
+            "teacher": ["principal", "hod"],
+            "student": ["principal", "hod"]
           }
         }
       },
@@ -439,7 +362,7 @@
         },
         "basicAuth": true,
         "allowedRoles": null,
-        "priviliges": {
+        "privileges": {
           "username": ["admin", "principal", "hod"],
           "college_id": ["admin"],
           "course_id": ["principal"],
@@ -462,7 +385,7 @@
         },
         "basicAuth": true,
         "allowedRoles": null,
-        "priviliges": {
+        "privileges": {
           "username": ["admin", "principal", "hod"],
           "college_id": ["admin"],
           "course_id": ["principal"],
@@ -478,43 +401,25 @@
       },
       "readAllConfig": {
         "columns": [
-          "college_id",
-          "course_id",
           "role",
           "username",
           "added_by",
+          "college_id",
+          "course_id",
           "branch_id"
         ],
-        "foreignColumns": {
-          "added_by": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ]
-        }
+        "foreignColumns": null
       },
       "readByPkConfig": {
         "columns": [
-          "college_id",
-          "course_id",
           "role",
           "username",
           "added_by",
-          "branch_id"
+          "branch_id",
+          "college_id",
+          "course_id"
         ],
-        "foreignColumns": {
-          "added_by": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ]
-        }
+        "foreignColumns": null
       },
       "defaultPagination": 20
     },
@@ -528,7 +433,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -544,7 +449,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -560,7 +465,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -576,7 +481,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -592,7 +497,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "Course_Id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -601,78 +506,34 @@
       },
       "readAllConfig": {
         "columns": [
-          "added_by",
-          "college_id",
-          "Branch_Id",
           "Course_Id",
           "Student_Father",
           "Student_Id",
-          "Student_Name"
+          "Student_Name",
+          "added_by",
+          "college_id",
+          "Branch_Id"
         ],
         "foreignColumns": {
-          "Branch_Id": [
-            "HoD",
-            "Teachers",
-            "added_by",
-            "college_id",
-            "Branch_Id",
-            "Branch_Name",
-            "Course_Id"
-          ],
-          "Course_Id": [
-            "added_by",
-            "college_id",
-            "Course_Id",
-            "Course_Name",
-            "Lateral_Allowed"
-          ],
-          "added_by": [
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id",
-            "role",
-            "username"
-          ],
-          "college_id": ["college_name", "principal_id", "college_id"]
+          "Branch_Id": ["Branch_Name", "Branch_Id"],
+          "Course_Id": ["Course_Id", "Course_Name"],
+          "college_id": ["college_id", "college_name"]
         }
       },
       "readByPkConfig": {
         "columns": [
-          "added_by",
-          "college_id",
-          "Branch_Id",
           "Course_Id",
           "Student_Father",
           "Student_Id",
-          "Student_Name"
+          "Student_Name",
+          "added_by",
+          "college_id",
+          "Branch_Id"
         ],
         "foreignColumns": {
-          "Branch_Id": [
-            "HoD",
-            "Teachers",
-            "added_by",
-            "college_id",
-            "Branch_Id",
-            "Branch_Name",
-            "Course_Id"
-          ],
-          "Course_Id": [
-            "added_by",
-            "college_id",
-            "Course_Id",
-            "Course_Name",
-            "Lateral_Allowed"
-          ],
-          "added_by": [
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id",
-            "role",
-            "username"
-          ],
-          "college_id": ["college_name", "principal_id", "college_id"]
+          "Branch_Id": ["Branch_Name", "Branch_Id"],
+          "Course_Id": ["Course_Id", "Course_Name"],
+          "college_id": ["college_id", "college_name"]
         }
       },
       "defaultPagination": 20
@@ -687,7 +548,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "course_id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -703,7 +564,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "course_id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -719,7 +580,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "course_id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -735,7 +596,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "course_id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -751,7 +612,7 @@
         },
         "basicAuth": true,
         "allowedRoles": ["principal", "hod"],
-        "priviliges": {
+        "privileges": {
           "course_id": ["principal"],
           "Branch_Id": ["principal"],
           "added_by": ["principal"]
@@ -768,31 +629,9 @@
           "course_id"
         ],
         "foreignColumns": {
-          "Branch_Id": [
-            "Teachers",
-            "added_by",
-            "college_id",
-            "Branch_Id",
-            "Branch_Name",
-            "Course_Id",
-            "HoD"
-          ],
-          "added_by": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ],
-          "college_id": ["college_id", "college_name", "principal_id"],
-          "course_id": [
-            "Course_Id",
-            "Course_Name",
-            "Lateral_Allowed",
-            "added_by",
-            "college_id"
-          ]
+          "Branch_Id": ["Branch_Id", "Branch_Name"],
+          "college_id": ["college_id", "college_name"],
+          "course_id": ["Course_Id", "Course_Name"]
         }
       },
       "readByPkConfig": {
@@ -805,31 +644,9 @@
           "course_id"
         ],
         "foreignColumns": {
-          "Branch_Id": [
-            "Teachers",
-            "added_by",
-            "college_id",
-            "Branch_Id",
-            "Branch_Name",
-            "Course_Id",
-            "HoD"
-          ],
-          "added_by": [
-            "role",
-            "username",
-            "added_by",
-            "branch_id",
-            "college_id",
-            "course_id"
-          ],
-          "college_id": ["college_id", "college_name", "principal_id"],
-          "course_id": [
-            "Course_Id",
-            "Course_Name",
-            "Lateral_Allowed",
-            "added_by",
-            "college_id"
-          ]
+          "Branch_Id": ["Branch_Id", "Branch_Name"],
+          "college_id": ["college_id", "college_name"],
+          "course_id": ["Course_Id", "Course_Name"]
         }
       },
       "defaultPagination": 20

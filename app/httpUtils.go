@@ -32,13 +32,6 @@ func getJsonResponse(success bool, message string, data any) []byte {
 }
 
 func startServer() *http.Server {
-	// courses routes
-	http.HandleFunc("POST /courses", api_create_courses)
-	http.HandleFunc("GET /courses", api_getAll_courses)
-	http.HandleFunc("GET /coursesByPK", api_getByPk_courses)
-	http.HandleFunc("PUT /courses", api_update_courses)
-	http.HandleFunc("DELETE /courses", api_delete_courses)
-
 	// AUTH routes
 	http.HandleFunc("POST /__auth/register", api_create_login)
 	http.HandleFunc("POST /__auth/login", api_login_user)
@@ -84,338 +77,18 @@ func startServer() *http.Server {
 	http.HandleFunc("PUT /college", api_update_college)
 	http.HandleFunc("DELETE /college", api_delete_college)
 
+	// courses routes
+	http.HandleFunc("POST /courses", api_create_courses)
+	http.HandleFunc("GET /courses", api_getAll_courses)
+	http.HandleFunc("GET /coursesByPK", api_getByPk_courses)
+	http.HandleFunc("PUT /courses", api_update_courses)
+	http.HandleFunc("DELETE /courses", api_delete_courses)
+
 	s := &http.Server{
 		Addr: ":8080",
 	}
 
 	return s
-}
-
-// courses handler functions
-
-func api_create_courses(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var claimValue string
-
-	claims, err := authorizeRequest(r, []string{"principal"})
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
-		w.Write(getJsonResponse(false, "unauthorized request", nil))
-		return
-	}
-
-	var item Table_courses
-
-	claimValue, _ = claims["username"].(string)
-	item.Column_added_by.String = claimValue
-	item.Column_added_by.Valid = len(claimValue) > 0
-
-	claimValue, _ = claims["college_id"].(string)
-	item.Column_college_id.String = claimValue
-	item.Column_college_id.Valid = len(claimValue) > 0
-
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		message := fmt.Sprintf("error while reading request body: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	ctx := r.Context()
-
-	if err := db_insert_courses(ctx, &item); err != nil {
-		message := fmt.Sprintf("error while creating: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	w.Write(getJsonResponse(true, "created successfully", nil))
-}
-
-func api_getAll_courses(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var claimValue string
-
-	claims, err := authorizeRequest(r, []string{"principal"})
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
-		w.Write(getJsonResponse(false, "unauthorized request", nil))
-		return
-	}
-
-	queryValues, err := url.ParseQuery(r.URL.RawQuery)
-
-	if err != nil {
-		message := fmt.Sprintf("error while parsing request query: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	if orderBy := queryValues.Get("__order"); len(orderBy) == 0 {
-		queryValues["__order"] = []string{"Course_Id"}
-	}
-
-	skip := []string{"0"}
-	limit := []string{"20"}
-
-	if limitQuery := queryValues.Get("__limit"); len(limitQuery) > 0 {
-		limitCount, err := strconv.Atoi(limitQuery)
-		if err != nil || limitCount < 1 {
-			message := fmt.Sprintf("%v is invalid __limit param: %v", limitQuery, err)
-			log.Print(message)
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write(getJsonResponse(false, "invalid __limit param", nil))
-			return
-		}
-		limit[0] = limitQuery
-	}
-
-	page := queryValues.Get("__page")
-	if len(page) == 0 {
-		page = "1"
-	}
-
-	pageNum, err := strconv.Atoi(page)
-	if err != nil || pageNum < 1 {
-		message := fmt.Sprintf("%v is invalid __page param: %v", page, err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, "invalid __page param", nil))
-		return
-	}
-
-	limitCount, _ := strconv.Atoi(limit[0])
-	skipCount := (pageNum - 1) * limitCount
-	skip[0] = strconv.Itoa(skipCount)
-
-	queryValues["__skip"] = skip
-	queryValues["__limit"] = limit
-
-	claimValue, _ = claims["username"].(string)
-	if len(claimValue) > 0 {
-		queryValues["added_by"] = []string{claimValue}
-	}
-
-	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		queryValues["college_id"] = []string{claimValue}
-	}
-
-	clause, args, err := getQueryClauseArgs(queryValues, Map_courses, "courses")
-
-	if err != nil {
-		message := fmt.Sprintf("error while parsing request query: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	ctx := r.Context()
-
-	data, nextFlag, err := db_readAll_courses(ctx, clause, args)
-
-	if err != nil {
-		message := fmt.Sprintf("error while reading: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	response := ReadAllApiResp{Next: nextFlag, Data: data}
-	w.Write(getJsonResponse(true, "data fetched successfully", response))
-}
-
-func api_getByPk_courses(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var claimValue string
-
-	claims, err := authorizeRequest(r, []string{"principal"})
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
-		w.Write(getJsonResponse(false, "unauthorized request", nil))
-		return
-	}
-
-	queryValues, err := url.ParseQuery(r.URL.RawQuery)
-
-	if err != nil {
-		message := fmt.Sprintf("error while parsing request query: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	id := getPkParam(queryValues, "CustomNullString")
-	if len(id) == 0 {
-		message := "missing id param in request query"
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	ctx := r.Context()
-
-	claimValue, _ = claims["username"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-	}
-
-	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
-
-	data, err := db_read_courses_ByPK(ctx, id)
-
-	if err != nil {
-		message := fmt.Sprintf("error while reading data: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	w.Write(getJsonResponse(true, "found data", data))
-}
-
-func api_update_courses(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var claimValue string
-
-	claims, err := authorizeRequest(r, []string{"principal"})
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
-		w.Write(getJsonResponse(false, "unauthorized request", nil))
-		return
-	}
-
-	queryValues, err := url.ParseQuery(r.URL.RawQuery)
-
-	if err != nil {
-		message := fmt.Sprintf("error while parsing request query: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	id := getPkParam(queryValues, "CustomNullString")
-	if len(id) == 0 {
-		message := "missing id param in request query"
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	var item Table_courses
-
-	ctx := r.Context()
-
-	claimValue, _ = claims["username"].(string)
-	item.Column_added_by.String = claimValue
-	item.Column_added_by.Valid = len(claimValue) > 0
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-	}
-
-	claimValue, _ = claims["college_id"].(string)
-	item.Column_college_id.String = claimValue
-	item.Column_college_id.Valid = len(claimValue) > 0
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		message := fmt.Sprintf("error while reading request body: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	if err := db_update_courses(ctx, id, &item); err != nil {
-		message := fmt.Sprintf("error while updating : %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	w.Write(getJsonResponse(true, "updated successfully", nil))
-}
-
-func api_delete_courses(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var claimValue string
-
-	claims, err := authorizeRequest(r, []string{"principal"})
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
-		w.Write(getJsonResponse(false, "unauthorized request", nil))
-		return
-	}
-
-	queryValues, err := url.ParseQuery(r.URL.RawQuery)
-
-	if err != nil {
-		message := fmt.Sprintf("error while parsing request query: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	id := getPkParam(queryValues, "CustomNullString")
-	if len(id) == 0 {
-		message := "missing id param in request query"
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	ctx := r.Context()
-
-	claimValue, _ = claims["username"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-	}
-
-	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
-
-	if err := db_delete_courses(ctx, id); err != nil {
-		message := fmt.Sprintf("error while deleting: %v", err)
-		log.Print(message)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(getJsonResponse(false, message, nil))
-		return
-	}
-
-	w.Write(getJsonResponse(true, "deleted successfully", nil))
 }
 
 // AUTH handler functions
@@ -665,29 +338,6 @@ func api_getAll_login(w http.ResponseWriter, r *http.Request) {
 	queryValues["__skip"] = skip
 	queryValues["__limit"] = limit
 
-	role := claims["role"].(string)
-
-	if !slices.Contains([]string{"admin", "principal"}, role) {
-		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			queryValues["branch_id"] = []string{claimValue}
-		}
-	}
-
-	if !slices.Contains([]string{"admin"}, role) {
-		claimValue, _ = claims["college_id"].(string)
-		if len(claimValue) > 0 {
-			queryValues["college_id"] = []string{claimValue}
-		}
-	}
-
-	if !slices.Contains([]string{"admin", "principal"}, role) {
-		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			queryValues["course_id"] = []string{claimValue}
-		}
-	}
-
 	clause, args, err := getQueryClauseArgs(queryValues, Map_login, "login")
 
 	if err != nil {
@@ -698,9 +348,26 @@ func api_getAll_login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	role := claims["role"].(string)
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, ContextKey("__role"), role)
+
+	if !slices.Contains([]string{"admin", "principal"}, role) {
+		claimValue, _ = claims["branch_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("branch_id"), claimValue)
+	}
+
+	if !slices.Contains([]string{"admin"}, role) {
+		claimValue, _ = claims["college_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
+	}
+
+	if !slices.Contains([]string{"admin", "principal"}, role) {
+		claimValue, _ = claims["course_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
+	}
 
 	data, nextFlag, err := db_readAll_login(ctx, clause, args)
 
@@ -754,23 +421,17 @@ func api_getByPk_login(w http.ResponseWriter, r *http.Request) {
 
 	if !slices.Contains([]string{"admin", "principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("branch_id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("branch_id"), claimValue)
 	}
 
 	if !slices.Contains([]string{"admin"}, role) {
 		claimValue, _ = claims["college_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 	}
 
 	if !slices.Contains([]string{"admin", "principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
 	}
 
 	data, err := db_read_login_ByPK(ctx, id)
@@ -822,44 +483,26 @@ func api_update_login(w http.ResponseWriter, r *http.Request) {
 
 	role := claims["role"].(string)
 
-	ctx := r.Context()
+	claimValue, _ = claims["username"].(string)
+	item.Column_added_by.String = claimValue
+	item.Column_added_by.Valid = len(claimValue) > 0
 
-	ctx = context.WithValue(ctx, ContextKey("__role"), role)
-
-	if !slices.Contains([]string{"admin", "principal", "hod"}, role) {
-		claimValue, _ = claims["username"].(string)
-		item.Column_username.String = claimValue
-		item.Column_username.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("username"), claimValue)
-		}
-	}
-
-	if !slices.Contains([]string{"principal"}, role) {
+	if !slices.Contains([]string{"", "principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
 		item.Column_branch_id.String = claimValue
 		item.Column_branch_id.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("branch_id"), claimValue)
-		}
 	}
 
-	if !slices.Contains([]string{"admin"}, role) {
+	if !slices.Contains([]string{"", "admin"}, role) {
 		claimValue, _ = claims["college_id"].(string)
 		item.Column_college_id.String = claimValue
 		item.Column_college_id.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-		}
 	}
 
-	if !slices.Contains([]string{"principal"}, role) {
+	if !slices.Contains([]string{"", "principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
 		item.Column_course_id.String = claimValue
 		item.Column_course_id.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
-		}
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -887,6 +530,30 @@ func api_update_login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
 		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, ContextKey("__role"), role)
+
+	if !slices.Contains([]string{"admin", "principal", "hod"}, role) {
+		claimValue, _ = claims["username"].(string)
+		ctx = context.WithValue(ctx, ContextKey("username"), claimValue)
+	}
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["branch_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("branch_id"), claimValue)
+	}
+
+	if !slices.Contains([]string{"admin"}, role) {
+		claimValue, _ = claims["college_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
+	}
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["course_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
 	}
 
 	if err := db_update_login(ctx, id, &item); err != nil {
@@ -940,30 +607,22 @@ func api_delete_login(w http.ResponseWriter, r *http.Request) {
 
 	if !slices.Contains([]string{"admin", "principal", "hod"}, role) {
 		claimValue, _ = claims["username"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("username"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("username"), claimValue)
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("branch_id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("branch_id"), claimValue)
 	}
 
 	if !slices.Contains([]string{"admin"}, role) {
 		claimValue, _ = claims["college_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
 	}
 
 	if err := db_delete_login(ctx, id); err != nil {
@@ -1103,34 +762,6 @@ func api_getAll_students(w http.ResponseWriter, r *http.Request) {
 	queryValues["__skip"] = skip
 	queryValues["__limit"] = limit
 
-	role := claims["role"].(string)
-
-	if !slices.Contains([]string{"principal"}, role) {
-		claimValue, _ = claims["username"].(string)
-		if len(claimValue) > 0 {
-			queryValues["added_by"] = []string{claimValue}
-		}
-	}
-
-	if !slices.Contains([]string{"principal"}, role) {
-		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			queryValues["Branch_Id"] = []string{claimValue}
-		}
-	}
-
-	if !slices.Contains([]string{"principal"}, role) {
-		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			queryValues["Course_Id"] = []string{claimValue}
-		}
-	}
-
-	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		queryValues["college_id"] = []string{claimValue}
-	}
-
 	clause, args, err := getQueryClauseArgs(queryValues, Map_students, "students")
 
 	if err != nil {
@@ -1141,7 +772,27 @@ func api_getAll_students(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	role := claims["role"].(string)
+
 	ctx := r.Context()
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["username"].(string)
+		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+	}
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["branch_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
+	}
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["course_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
+	}
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	data, nextFlag, err := db_readAll_students(ctx, clause, args)
 
@@ -1195,29 +846,21 @@ func api_getByPk_students(w http.ResponseWriter, r *http.Request) {
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["username"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
 	}
 
 	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	data, err := db_read_students_ByPK(ctx, id)
 
@@ -1268,41 +911,27 @@ func api_update_students(w http.ResponseWriter, r *http.Request) {
 
 	role := claims["role"].(string)
 
-	ctx := r.Context()
-
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["username"].(string)
 		item.Column_added_by.String = claimValue
 		item.Column_added_by.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-		}
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
 		item.Column_Branch_Id.String = claimValue
 		item.Column_Branch_Id.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
-		}
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
 		item.Column_Course_Id.String = claimValue
 		item.Column_Course_Id.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
-		}
 	}
 
 	claimValue, _ = claims["college_id"].(string)
 	item.Column_college_id.String = claimValue
 	item.Column_college_id.Valid = len(claimValue) > 0
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
 
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		message := fmt.Sprintf("error while reading request body: %v", err)
@@ -1311,6 +940,26 @@ func api_update_students(w http.ResponseWriter, r *http.Request) {
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	ctx := r.Context()
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["username"].(string)
+		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+	}
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["branch_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
+	}
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["course_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
+	}
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	if err := db_update_students(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
@@ -1361,29 +1010,21 @@ func api_delete_students(w http.ResponseWriter, r *http.Request) {
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["username"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
 	}
 
 	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	if err := db_delete_students(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
@@ -1522,34 +1163,6 @@ func api_getAll_subjects(w http.ResponseWriter, r *http.Request) {
 	queryValues["__skip"] = skip
 	queryValues["__limit"] = limit
 
-	role := claims["role"].(string)
-
-	if !slices.Contains([]string{"principal"}, role) {
-		claimValue, _ = claims["username"].(string)
-		if len(claimValue) > 0 {
-			queryValues["added_by"] = []string{claimValue}
-		}
-	}
-
-	if !slices.Contains([]string{"principal"}, role) {
-		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			queryValues["Branch_Id"] = []string{claimValue}
-		}
-	}
-
-	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		queryValues["college_id"] = []string{claimValue}
-	}
-
-	if !slices.Contains([]string{"principal"}, role) {
-		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			queryValues["course_id"] = []string{claimValue}
-		}
-	}
-
 	clause, args, err := getQueryClauseArgs(queryValues, Map_subjects, "subjects")
 
 	if err != nil {
@@ -1560,7 +1173,27 @@ func api_getAll_subjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	role := claims["role"].(string)
+
 	ctx := r.Context()
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["username"].(string)
+		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+	}
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["branch_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
+	}
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["course_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
+	}
 
 	data, nextFlag, err := db_readAll_subjects(ctx, clause, args)
 
@@ -1614,28 +1247,20 @@ func api_getByPk_subjects(w http.ResponseWriter, r *http.Request) {
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["username"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
 	}
 
 	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
 	}
 
 	data, err := db_read_subjects_ByPK(ctx, id)
@@ -1687,40 +1312,26 @@ func api_update_subjects(w http.ResponseWriter, r *http.Request) {
 
 	role := claims["role"].(string)
 
-	ctx := r.Context()
-
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["username"].(string)
 		item.Column_added_by.String = claimValue
 		item.Column_added_by.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-		}
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
 		item.Column_Branch_Id.String = claimValue
 		item.Column_Branch_Id.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
-		}
 	}
 
 	claimValue, _ = claims["college_id"].(string)
 	item.Column_college_id.String = claimValue
 	item.Column_college_id.Valid = len(claimValue) > 0
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
 		item.Column_course_id.String = claimValue
 		item.Column_course_id.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
-		}
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -1729,6 +1340,26 @@ func api_update_subjects(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(getJsonResponse(false, message, nil))
 		return
+	}
+
+	ctx := r.Context()
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["username"].(string)
+		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+	}
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["branch_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
+	}
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["course_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
 	}
 
 	if err := db_update_subjects(ctx, id, &item); err != nil {
@@ -1780,28 +1411,20 @@ func api_delete_subjects(w http.ResponseWriter, r *http.Request) {
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["username"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
 	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["branch_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("Branch_Id"), claimValue)
 	}
 
 	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("course_id"), claimValue)
 	}
 
 	if err := db_delete_subjects(ctx, id); err != nil {
@@ -1984,8 +1607,6 @@ func api_update_TypeTest(w http.ResponseWriter, r *http.Request) {
 
 	var item Table_TypeTest
 
-	ctx := r.Context()
-
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		message := fmt.Sprintf("error while reading request body: %v", err)
 		log.Print(message)
@@ -1993,6 +1614,8 @@ func api_update_TypeTest(w http.ResponseWriter, r *http.Request) {
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	ctx := r.Context()
 
 	if err := db_update_TypeTest(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
@@ -2158,25 +1781,6 @@ func api_getAll_branches(w http.ResponseWriter, r *http.Request) {
 	queryValues["__skip"] = skip
 	queryValues["__limit"] = limit
 
-	role := claims["role"].(string)
-
-	claimValue, _ = claims["username"].(string)
-	if len(claimValue) > 0 {
-		queryValues["added_by"] = []string{claimValue}
-	}
-
-	if !slices.Contains([]string{"principal"}, role) {
-		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			queryValues["Course_Id"] = []string{claimValue}
-		}
-	}
-
-	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		queryValues["college_id"] = []string{claimValue}
-	}
-
 	clause, args, err := getQueryClauseArgs(queryValues, Map_branches, "branches")
 
 	if err != nil {
@@ -2187,7 +1791,20 @@ func api_getAll_branches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	role := claims["role"].(string)
+
 	ctx := r.Context()
+
+	claimValue, _ = claims["username"].(string)
+	ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["course_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
+	}
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	data, nextFlag, err := db_readAll_branches(ctx, clause, args)
 
@@ -2238,23 +1855,17 @@ func api_getByPk_branches(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	claimValue, _ = claims["username"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-	}
+	ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
 
 	role := claims["role"].(string)
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
 	}
 
 	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	data, err := db_read_branches_ByPK(ctx, id)
 
@@ -2305,30 +1916,19 @@ func api_update_branches(w http.ResponseWriter, r *http.Request) {
 
 	role := claims["role"].(string)
 
-	ctx := r.Context()
-
 	claimValue, _ = claims["username"].(string)
 	item.Column_added_by.String = claimValue
 	item.Column_added_by.Valid = len(claimValue) > 0
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-	}
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
 		item.Column_Course_Id.String = claimValue
 		item.Column_Course_Id.Valid = len(claimValue) > 0
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
-		}
 	}
 
 	claimValue, _ = claims["college_id"].(string)
 	item.Column_college_id.String = claimValue
 	item.Column_college_id.Valid = len(claimValue) > 0
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
 
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		message := fmt.Sprintf("error while reading request body: %v", err)
@@ -2337,6 +1937,19 @@ func api_update_branches(w http.ResponseWriter, r *http.Request) {
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	ctx := r.Context()
+
+	claimValue, _ = claims["username"].(string)
+	ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+
+	if !slices.Contains([]string{"principal"}, role) {
+		claimValue, _ = claims["course_id"].(string)
+		ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
+	}
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	if err := db_update_branches(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
@@ -2386,21 +1999,15 @@ func api_delete_branches(w http.ResponseWriter, r *http.Request) {
 	role := claims["role"].(string)
 
 	claimValue, _ = claims["username"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
-	}
+	ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
 
 	if !slices.Contains([]string{"principal"}, role) {
 		claimValue, _ = claims["course_id"].(string)
-		if len(claimValue) > 0 {
-			ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
-		}
+		ctx = context.WithValue(ctx, ContextKey("Course_Id"), claimValue)
 	}
 
 	claimValue, _ = claims["college_id"].(string)
-	if len(claimValue) > 0 {
-		ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
-	}
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
 
 	if err := db_delete_branches(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
@@ -2614,8 +2221,6 @@ func api_update_college(w http.ResponseWriter, r *http.Request) {
 
 	var item Table_college
 
-	ctx := r.Context()
-
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 		message := fmt.Sprintf("error while reading request body: %v", err)
 		log.Print(message)
@@ -2623,6 +2228,8 @@ func api_update_college(w http.ResponseWriter, r *http.Request) {
 		w.Write(getJsonResponse(false, message, nil))
 		return
 	}
+
+	ctx := r.Context()
 
 	if err := db_update_college(ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
@@ -2668,6 +2275,321 @@ func api_delete_college(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if err := db_delete_college(ctx, id); err != nil {
+		message := fmt.Sprintf("error while deleting: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.Write(getJsonResponse(true, "deleted successfully", nil))
+}
+
+// courses handler functions
+
+func api_create_courses(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var claimValue string
+
+	claims, err := authorizeRequest(r, []string{"principal"})
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	var item Table_courses
+
+	claimValue, _ = claims["username"].(string)
+	item.Column_added_by.String = claimValue
+	item.Column_added_by.Valid = len(claimValue) > 0
+
+	claimValue, _ = claims["college_id"].(string)
+	item.Column_college_id.String = claimValue
+	item.Column_college_id.Valid = len(claimValue) > 0
+
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		message := fmt.Sprintf("error while reading request body: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	ctx := r.Context()
+
+	if err := db_insert_courses(ctx, &item); err != nil {
+		message := fmt.Sprintf("error while creating: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write(getJsonResponse(true, "created successfully", nil))
+}
+
+func api_getAll_courses(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var claimValue string
+
+	claims, err := authorizeRequest(r, []string{"principal"})
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
+
+	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	if orderBy := queryValues.Get("__order"); len(orderBy) == 0 {
+		queryValues["__order"] = []string{"Course_Id"}
+	}
+
+	skip := []string{"0"}
+	limit := []string{"20"}
+
+	if limitQuery := queryValues.Get("__limit"); len(limitQuery) > 0 {
+		limitCount, err := strconv.Atoi(limitQuery)
+		if err != nil || limitCount < 1 {
+			message := fmt.Sprintf("%v is invalid __limit param: %v", limitQuery, err)
+			log.Print(message)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(getJsonResponse(false, "invalid __limit param", nil))
+			return
+		}
+		limit[0] = limitQuery
+	}
+
+	page := queryValues.Get("__page")
+	if len(page) == 0 {
+		page = "1"
+	}
+
+	pageNum, err := strconv.Atoi(page)
+	if err != nil || pageNum < 1 {
+		message := fmt.Sprintf("%v is invalid __page param: %v", page, err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, "invalid __page param", nil))
+		return
+	}
+
+	limitCount, _ := strconv.Atoi(limit[0])
+	skipCount := (pageNum - 1) * limitCount
+	skip[0] = strconv.Itoa(skipCount)
+
+	queryValues["__skip"] = skip
+	queryValues["__limit"] = limit
+
+	clause, args, err := getQueryClauseArgs(queryValues, Map_courses, "courses")
+
+	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	ctx := r.Context()
+
+	claimValue, _ = claims["username"].(string)
+	ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
+
+	data, nextFlag, err := db_readAll_courses(ctx, clause, args)
+
+	if err != nil {
+		message := fmt.Sprintf("error while reading: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	response := ReadAllApiResp{Next: nextFlag, Data: data}
+	w.Write(getJsonResponse(true, "data fetched successfully", response))
+}
+
+func api_getByPk_courses(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var claimValue string
+
+	claims, err := authorizeRequest(r, []string{"principal"})
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
+
+	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	id := getPkParam(queryValues, "CustomNullString")
+	if len(id) == 0 {
+		message := "missing id param in request query"
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	ctx := r.Context()
+
+	claimValue, _ = claims["username"].(string)
+	ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
+
+	data, err := db_read_courses_ByPK(ctx, id)
+
+	if err != nil {
+		message := fmt.Sprintf("error while reading data: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.Write(getJsonResponse(true, "found data", data))
+}
+
+func api_update_courses(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var claimValue string
+
+	claims, err := authorizeRequest(r, []string{"principal"})
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
+
+	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	id := getPkParam(queryValues, "CustomNullString")
+	if len(id) == 0 {
+		message := "missing id param in request query"
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	var item Table_courses
+
+	claimValue, _ = claims["username"].(string)
+	item.Column_added_by.String = claimValue
+	item.Column_added_by.Valid = len(claimValue) > 0
+
+	claimValue, _ = claims["college_id"].(string)
+	item.Column_college_id.String = claimValue
+	item.Column_college_id.Valid = len(claimValue) > 0
+
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		message := fmt.Sprintf("error while reading request body: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	ctx := r.Context()
+
+	claimValue, _ = claims["username"].(string)
+	ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
+
+	if err := db_update_courses(ctx, id, &item); err != nil {
+		message := fmt.Sprintf("error while updating : %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	w.Write(getJsonResponse(true, "updated successfully", nil))
+}
+
+func api_delete_courses(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var claimValue string
+
+	claims, err := authorizeRequest(r, []string{"principal"})
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("%s %s %v: %v", r.Method, r.URL.Path, http.StatusUnauthorized, err)
+		w.Write(getJsonResponse(false, "unauthorized request", nil))
+		return
+	}
+
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
+
+	if err != nil {
+		message := fmt.Sprintf("error while parsing request query: %v", err)
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	id := getPkParam(queryValues, "CustomNullString")
+	if len(id) == 0 {
+		message := "missing id param in request query"
+		log.Print(message)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(getJsonResponse(false, message, nil))
+		return
+	}
+
+	ctx := r.Context()
+
+	claimValue, _ = claims["username"].(string)
+	ctx = context.WithValue(ctx, ContextKey("added_by"), claimValue)
+
+	claimValue, _ = claims["college_id"].(string)
+	ctx = context.WithValue(ctx, ContextKey("college_id"), claimValue)
+
+	if err := db_delete_courses(ctx, id); err != nil {
 		message := fmt.Sprintf("error while deleting: %v", err)
 		log.Print(message)
 		w.WriteHeader(http.StatusBadRequest)

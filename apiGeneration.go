@@ -474,7 +474,7 @@ func (authInfo *AuthInfo) validateAuthInfo(rolesEnum, appOrgFields []string, col
 		}
 	}
 
-	for field, explicitSetters := range authInfo.Priviliges {
+	for field, explicitSetters := range authInfo.Privileges {
 		if field != authInfo.UserField && authInfo.OrgFields[field] == "" {
 			return fmt.Errorf(`invalid priviliges: "%s" field, neither an userField nor an orgField`, field)
 		}

@@ -77,10 +77,10 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{- $userField := .TableConfig.InsertAuth.UserField -}}
 	{{- $orgFields := .TableConfig.InsertAuth.OrgFields -}}
-	{{- $priviliges := .TableConfig.InsertAuth.Priviliges -}}
+	{{- $privileges := .TableConfig.InsertAuth.Privileges -}}
 	{{- $protectedFields := .TableConfig.InsertAuth.ProtectedFields -}}
 
-	{{- if and (not .TableConfig.InsertAuth.BasicAuth) (or $userField $orgFields $priviliges $protectedFields) -}}
+	{{- if and (not .TableConfig.InsertAuth.BasicAuth) (or $userField $orgFields $privileges $protectedFields) -}}
 		{{- "\n\n" -}}
 		claims, _ := authorizeRequest(r, nil)
 	{{- end -}}
@@ -92,7 +92,7 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{ if .TableConfig.InsertAuth.BasicAuth }}
 		{{- "\n\n" -}}
-		{{- if or $userField $orgFields $priviliges $protectedFields -}} 
+		{{- if or $userField $orgFields $privileges $protectedFields -}} 
 			{{- "claims" -}}
 		{{- else -}}
 			{{- "_" -}}
@@ -109,12 +109,12 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	var item Table_ {{- .TableName }}
 
-	{{ if or $priviliges $protectedFields }}
+	{{ if or $privileges $protectedFields }}
 		role := claims["role"].(string)
 	{{ end }}
 
 	{{ if $userField }}
-		{{ $specialRoles := index $priviliges $userField }}
+		{{ $specialRoles := index $privileges $userField }}
 
 		{{ if $specialRoles }}
 			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
@@ -130,7 +130,7 @@ func api_create_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	{{ end }}
 
 	{{ range $orgField, $tokenField := $orgFields }}
-		{{ $specialRoles := index $priviliges $orgField }}
+		{{ $specialRoles := index $privileges $orgField }}
 
 		{{ if $specialRoles }}
 			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
@@ -207,10 +207,10 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{- $userField := .TableConfig.ReadAllAuth.UserField -}}
 	{{- $orgFields := .TableConfig.ReadAllAuth.OrgFields -}}
-	{{- $priviliges := .TableConfig.ReadAllAuth.Priviliges -}}
+	{{- $privileges := .TableConfig.ReadAllAuth.Privileges -}}
 	{{- $protectedFields := .TableConfig.ReadAllAuth.ProtectedFields -}}
 
-	{{- if and (not .TableConfig.ReadAllAuth.BasicAuth) (or $userField $orgFields $priviliges $protectedFields) -}}
+	{{- if and (not .TableConfig.ReadAllAuth.BasicAuth) (or $userField $orgFields $privileges $protectedFields) -}}
 		{{- "\n\n" -}}
 		claims, _ := authorizeRequest(r, nil)
 	{{- end -}}
@@ -222,7 +222,7 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{ if .TableConfig.ReadAllAuth.BasicAuth }}
 		{{- "\n\n" -}}
-		{{- if or $userField $orgFields $priviliges $protectedFields -}} 
+		{{- if or $userField $orgFields $privileges $protectedFields -}} 
 			{{- "claims" -}}
 		{{- else -}}
 			{{- "_" -}}
@@ -295,46 +295,6 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	queryValues["__skip"] = skip
 	queryValues["__limit"] = limit
 
-	{{ if or $priviliges $protectedFields }}
-		role := claims["role"].(string)
-	{{ end }}
-
-	{{ if $userField }}
-		{{ $specialRoles := index $priviliges $userField }}
-
-		{{ if $specialRoles }}
-			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
-				claimValue, _ = claims["username"].(string)
-				if len(claimValue) > 0 {
-					queryValues["{{ $userField }}"] = []string{claimValue}
-				}
-			}
-		{{ else }}
-			claimValue, _ = claims["username"].(string)
-			if len(claimValue) > 0 {
-				queryValues["{{ $userField }}"] = []string{claimValue}
-			}
-		{{ end }}
-	{{ end }}
-
-	{{ range $orgField, $tokenField := $orgFields }}
-		{{ $specialRoles := index $priviliges $orgField }}
-
-		{{ if $specialRoles }}
-			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
-				claimValue, _ = claims["{{ $tokenField }}"].(string)
-				if len(claimValue) > 0 {
-					queryValues["{{ $orgField }}"] = []string{claimValue}
-				}
-			}
-		{{ else }}
-			claimValue, _ = claims["{{ $tokenField }}"].(string)
-			if len(claimValue) > 0 {
-				queryValues["{{ $orgField }}"] = []string{claimValue}
-			}
-		{{ end }}
-	{{ end }}
-
 	clause, args, err := getQueryClauseArgs(queryValues, Map_ {{- .TableName -}}, "{{- .TableName -}}")
 
 	if err != nil {
@@ -345,10 +305,42 @@ func api_getAll_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	{{ if or $privileges $protectedFields }}
+		role := claims["role"].(string)
+	{{ end }}
+
 	ctx := r.Context()
 
 	{{ if $protectedFields }}
 		ctx = context.WithValue(ctx, ContextKey("__role"), role)
+	{{ end }}
+
+	{{ if $userField }}
+		{{ $specialRoles := index $privileges $userField }}
+
+		{{ if $specialRoles }}
+			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
+				claimValue, _ = claims["username"].(string)
+				ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
+			}
+		{{ else }}
+			claimValue, _ = claims["username"].(string)
+			ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
+		{{ end }}
+	{{ end }}
+
+	{{ range $orgField, $tokenField := $orgFields }}
+		{{ $specialRoles := index $privileges $orgField }}
+
+		{{ if $specialRoles }}
+			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
+				claimValue, _ = claims["{{ $tokenField }}"].(string)
+				ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
+			}
+		{{ else }}
+			claimValue, _ = claims["{{ $tokenField }}"].(string)
+			ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
+		{{ end }}
 	{{ end }}
 
 	data, nextFlag, err := db_readAll_ {{- .TableName -}} (ctx, clause, args)
@@ -372,10 +364,10 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{- $userField := .TableConfig.ReadByPkAuth.UserField -}}
 	{{- $orgFields := .TableConfig.ReadByPkAuth.OrgFields -}}
-	{{- $priviliges := .TableConfig.ReadByPkAuth.Priviliges -}}
+	{{- $privileges := .TableConfig.ReadByPkAuth.Privileges -}}
 	{{- $protectedFields := .TableConfig.ReadByPkAuth.ProtectedFields -}}
 
-	{{- if and (not .TableConfig.ReadByPkAuth.BasicAuth) (or $userField $orgFields $priviliges $protectedFields) -}}
+	{{- if and (not .TableConfig.ReadByPkAuth.BasicAuth) (or $userField $orgFields $privileges $protectedFields) -}}
 		{{- "\n\n" -}}
 		claims, _ := authorizeRequest(r, nil)
 	{{- end -}}
@@ -387,7 +379,7 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{ if .TableConfig.ReadByPkAuth.BasicAuth }}
 		{{- "\n\n" -}}
-		{{- if or $userField $orgFields $priviliges $protectedFields -}} 
+		{{- if or $userField $orgFields $privileges $protectedFields -}} 
 			{{- "claims" -}}
 		{{- else -}}
 			{{- "_" -}}
@@ -426,7 +418,7 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	{{ if $userField }}
-		{{ $specialRoles := index $priviliges $userField }}
+		{{ $specialRoles := index $privileges $userField }}
 
 		{{ if $specialRoles }}
 			{{ if not $roleDeclared }}
@@ -436,20 +428,16 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
 				claimValue, _ = claims["username"].(string)
-				if len(claimValue) > 0 {
-					ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
-				}
+				ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
 			}
 		{{ else }}
 			claimValue, _ = claims["username"].(string)
-			if len(claimValue) > 0 {
-				ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
-			}
+			ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
 		{{ end }}
 	{{ end }}
 
 	{{ range $orgField, $tokenField := $orgFields }}
-		{{ $specialRoles := index $priviliges $orgField }}
+		{{ $specialRoles := index $privileges $orgField }}
 
 		{{ if $specialRoles }}
 			{{ if not $roleDeclared }}
@@ -459,15 +447,11 @@ func api_getByPk_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
 				claimValue, _ = claims["{{ $tokenField }}"].(string)
-				if len(claimValue) > 0 {
-					ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
-				}
+				ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
 			}
 		{{ else }}
 			claimValue, _ = claims["{{ $tokenField }}"].(string)
-			if len(claimValue) > 0 {
-				ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
-			}
+			ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
 		{{ end }}
 	{{ end }}
 
@@ -491,22 +475,27 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{- $userField := .TableConfig.UpdateAuth.UserField -}}
 	{{- $orgFields := .TableConfig.UpdateAuth.OrgFields -}}
-	{{- $priviliges := .TableConfig.UpdateAuth.Priviliges -}}
+	{{- $privileges := .TableConfig.UpdateAuth.Privileges -}}
 	{{- $protectedFields := .TableConfig.UpdateAuth.ProtectedFields -}}
 
-	{{- if and (not .TableConfig.UpdateAuth.BasicAuth) (or $userField $orgFields $priviliges $protectedFields) -}}
+	{{- $writeUserField := .TableConfig.InsertAuth.UserField -}}
+	{{- $writeOrgFields := .TableConfig.InsertAuth.OrgFields -}}
+	{{- $writePrivileges := .TableConfig.InsertAuth.Privileges -}}
+	{{- $writeProtectedFields := .TableConfig.InsertAuth.ProtectedFields -}}
+
+	{{- if and (not .TableConfig.UpdateAuth.BasicAuth) (or $userField $orgFields $privileges $protectedFields $writeUserField $writeOrgFields $writePrivileges $writeProtectedFields ) -}}
 		{{- "\n\n" -}}
 		claims, _ := authorizeRequest(r, nil)
 	{{- end -}}
 
-	{{- if or $userField $orgFields -}}
+	{{- if or $userField $orgFields $writeUserField $writeOrgFields -}}
 		{{- "\n\n" -}}
 		var claimValue string
 	{{- end -}}
 
 	{{ if .TableConfig.UpdateAuth.BasicAuth }}
 		{{- "\n\n" -}}
-		{{- if or $userField $orgFields $priviliges $protectedFields -}} 
+		{{- if or $userField $orgFields $privileges $protectedFields $writeUserField $writeOrgFields $writePrivileges $writeProtectedFields -}} 
 			{{- "claims" -}}
 		{{- else -}}
 			{{- "_" -}}
@@ -542,57 +531,39 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	var item Table_ {{- .TableName }}
 
-	{{ if or $priviliges $protectedFields }}
+	{{ if or $privileges $protectedFields $writePrivileges $writeProtectedFields }}
 		role := claims["role"].(string)
 	{{ end }}
 
-	ctx := r.Context()
-
-	{{ if $protectedFields }}
-		ctx = context.WithValue(ctx, ContextKey("__role"), role)
-	{{ end }}
-
-	{{ if $userField }}
-		{{ $specialRoles := index $priviliges $userField }}
+	{{ if $writeUserField }}
+		{{ $specialRoles := index $writePrivileges $writeUserField }}
 
 		{{ if $specialRoles }}
 			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
 				claimValue, _ = claims["username"].(string)
-				item.Column_ {{- $userField -}}.String = claimValue
-				item.Column_ {{- $userField -}}.Valid = len(claimValue) > 0
-				if len(claimValue) > 0 {
-					ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
-				}
+				item.Column_ {{- $writeUserField -}}.String = claimValue
+				item.Column_ {{- $writeUserField -}}.Valid = len(claimValue) > 0
 			}
 		{{ else }}
 			claimValue, _ = claims["username"].(string)
-			item.Column_ {{- $userField -}}.String = claimValue
-			item.Column_ {{- $userField -}}.Valid = len(claimValue) > 0
-			if len(claimValue) > 0 {
-				ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
-			}
+			item.Column_ {{- $writeUserField -}}.String = claimValue
+			item.Column_ {{- $writeUserField -}}.Valid = len(claimValue) > 0
 		{{ end }}
 	{{ end }}
 
-	{{ range $orgField, $tokenField := $orgFields }}
-		{{ $specialRoles := index $priviliges $orgField }}
+	{{ range $orgField, $tokenField := $writeOrgFields }}
+		{{ $specialRoles := index $writePrivileges $orgField }}
 
 		{{ if $specialRoles }}
 			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
 				claimValue, _ = claims["{{ $tokenField }}"].(string)
 				item.Column_ {{- $orgField -}}.String = claimValue
 				item.Column_ {{- $orgField -}}.Valid = len(claimValue) > 0
-				if len(claimValue) > 0 {
-					ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
-				}
 			}
 		{{ else }}
 				claimValue, _ = claims["{{ $tokenField }}"].(string)
 				item.Column_ {{- $orgField -}}.String = claimValue
 				item.Column_ {{- $orgField -}}.Valid = len(claimValue) > 0
-				if len(claimValue) > 0 {
-					ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
-				}
 		{{ end }}
 	{{ end }}
 
@@ -605,7 +576,7 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	}
 
 	{{ range $column := .Columns }}
-		{{ $valuesMap := index $protectedFields $column.ColumnName }}
+		{{ $valuesMap := index $writeProtectedFields $column.ColumnName }}
 		{{ if $valuesMap }}
 			{{- $templateMap := templateProtectMap $valuesMap $column.DataType -}}
 
@@ -637,6 +608,40 @@ func api_update_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{ template "hashData" .Columns }}
 
+	ctx := r.Context()
+
+	{{ if $protectedFields }}
+		ctx = context.WithValue(ctx, ContextKey("__role"), role)
+	{{ end }}
+
+	{{ if $userField }}
+		{{ $specialRoles := index $privileges $userField }}
+
+		{{ if $specialRoles }}
+			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
+				claimValue, _ = claims["username"].(string)
+				ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
+			}
+		{{ else }}
+			claimValue, _ = claims["username"].(string)
+			ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
+		{{ end }}
+	{{ end }}
+
+	{{ range $orgField, $tokenField := $orgFields }}
+		{{ $specialRoles := index $privileges $orgField }}
+
+		{{ if $specialRoles }}
+			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
+				claimValue, _ = claims["{{ $tokenField }}"].(string)
+				ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
+			}
+		{{ else }}
+				claimValue, _ = claims["{{ $tokenField }}"].(string)
+				ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
+		{{ end }}
+	{{ end }}
+
 	if err := db_update_ {{- .TableName -}} (ctx, id, &item); err != nil {
 		message := fmt.Sprintf("error while updating : %v", err)
 		log.Print(message)
@@ -655,10 +660,10 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{- $userField := .TableConfig.DeleteAuth.UserField -}}
 	{{- $orgFields := .TableConfig.DeleteAuth.OrgFields -}}
-	{{- $priviliges := .TableConfig.DeleteAuth.Priviliges -}}
+	{{- $privileges := .TableConfig.DeleteAuth.Privileges -}}
 	{{- $protectedFields := .TableConfig.DeleteAuth.ProtectedFields -}}
 
-	{{- if and (not .TableConfig.DeleteAuth.BasicAuth) (or $userField $orgFields $priviliges $protectedFields) -}}
+	{{- if and (not .TableConfig.DeleteAuth.BasicAuth) (or $userField $orgFields $privileges $protectedFields) -}}
 		{{- "\n\n" -}}
 		claims, _ := authorizeRequest(r, nil)
 	{{- end -}}
@@ -670,7 +675,7 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	{{ if .TableConfig.DeleteAuth.BasicAuth }}
 		{{- "\n\n" -}}
-		{{- if or $userField $orgFields $priviliges $protectedFields -}} 
+		{{- if or $userField $orgFields $privileges $protectedFields -}} 
 			{{- "claims" -}}
 		{{- else -}}
 			{{- "_" -}}
@@ -708,7 +713,7 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	{{ if or $priviliges $protectedFields }}
+	{{ if or $privileges $protectedFields }}
 		role := claims["role"].(string)
 	{{ end }}
 		
@@ -717,38 +722,30 @@ func api_delete_ {{- .TableName -}} (w http.ResponseWriter, r *http.Request) {
 	{{ end }}
 
 	{{ if $userField }}
-		{{ $specialRoles := index $priviliges $userField }}
+		{{ $specialRoles := index $privileges $userField }}
 
 		{{ if $specialRoles }}
 			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
 				claimValue, _ = claims["username"].(string)
-				if len(claimValue) > 0 {
-					ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
-				}
+				ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
 			}
 		{{ else }}
 			claimValue, _ = claims["username"].(string)
-			if len(claimValue) > 0 {
-				ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
-			}
+			ctx = context.WithValue(ctx, ContextKey("{{ $userField }}"), claimValue)
 		{{ end }}
 	{{ end }}
 
 	{{ range $orgField, $tokenField := $orgFields }}
-		{{ $specialRoles := index $priviliges $orgField }}
+		{{ $specialRoles := index $privileges $orgField }}
 
 		{{ if $specialRoles }}
 			if !slices.Contains({{ printf "%#v" $specialRoles }}, role) {
 				claimValue, _ = claims["{{ $tokenField }}"].(string)
-				if len(claimValue) > 0 {
-					ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
-				}
+				ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
 			}
 		{{ else }}
 				claimValue, _ = claims["{{ $tokenField }}"].(string)
-				if len(claimValue) > 0 {
-					ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
-				}
+				ctx = context.WithValue(ctx, ContextKey("{{ $orgField }}"), claimValue)
 		{{ end }}
 	{{ end }}
 

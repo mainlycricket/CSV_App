@@ -20,103 +20,6 @@ type ReadAllApiResp struct {
 	Data any  `json:"data"`
 }
 
-type Table_courses struct {
-	Column_Course_Id       CustomNullString `json:"Course_Id"`
-	Column_Course_Name     CustomNullString `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullBool   `json:"Lateral_Allowed"`
-	Column_added_by        CustomNullString `json:"added_by"`
-	Column_college_id      CustomNullString `json:"college_id"`
-}
-
-var Map_courses = map[string]Column{
-
-	"Course_Id": {
-		ColumnName: "Course_Id",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-
-	"Course_Name": {
-		ColumnName: "Course_Name",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-
-	"Lateral_Allowed": {
-		ColumnName: "Lateral_Allowed",
-		DataType:   "CustomNullBool",
-		NotNull:    false,
-		pgType:     "boolean",
-		Hash:       false,
-	},
-
-	"added_by": {
-		ColumnName: "added_by",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-
-	"college_id": {
-		ColumnName: "college_id",
-		DataType:   "CustomNullString",
-		NotNull:    true,
-		pgType:     "text",
-		Hash:       false,
-	},
-}
-
-type Fkey_courses_added_by_PK struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-}
-
-type Fkey_courses_college_id_PK struct {
-	Column_college_id   CustomNullString `json:"college_id"`
-	Column_college_name CustomNullString `json:"college_name"`
-	Column_principal_id CustomNullString `json:"principal_id"`
-}
-
-type Table_courses_ResponsePK struct {
-	Column_Course_Id       CustomNullString           `json:"Course_Id"`
-	Column_Course_Name     CustomNullString           `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullBool             `json:"Lateral_Allowed"`
-	Column_added_by        Fkey_courses_added_by_PK   `json:"added_by"`
-	Column_college_id      Fkey_courses_college_id_PK `json:"college_id"`
-}
-
-type Fkey_courses_added_by_All struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-}
-
-type Fkey_courses_college_id_All struct {
-	Column_college_id   CustomNullString `json:"college_id"`
-	Column_college_name CustomNullString `json:"college_name"`
-	Column_principal_id CustomNullString `json:"principal_id"`
-}
-
-type Table_courses_ResponseAll struct {
-	Column_Course_Id       CustomNullString            `json:"Course_Id"`
-	Column_Course_Name     CustomNullString            `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullBool              `json:"Lateral_Allowed"`
-	Column_added_by        Fkey_courses_added_by_All   `json:"added_by"`
-	Column_college_id      Fkey_courses_college_id_All `json:"college_id"`
-}
-
 type Table_login struct {
 	Column_added_by   CustomNullString `json:"added_by"`
 	Column_branch_id  CustomNullString `json:"branch_id"`
@@ -186,40 +89,22 @@ var Map_login = map[string]Column{
 	},
 }
 
-type Fkey_login_added_by_PK struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-}
-
 type Table_login_ResponsePK struct {
-	Column_added_by   Fkey_login_added_by_PK `json:"added_by"`
-	Column_branch_id  CustomNullString       `json:"branch_id"`
-	Column_college_id CustomNullString       `json:"college_id"`
-	Column_course_id  CustomNullString       `json:"course_id"`
-	Column_role       CustomNullString       `json:"role"`
-	Column_username   CustomNullString       `json:"username"`
-}
-
-type Fkey_login_added_by_All struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
 	Column_added_by   CustomNullString `json:"added_by"`
 	Column_branch_id  CustomNullString `json:"branch_id"`
 	Column_college_id CustomNullString `json:"college_id"`
 	Column_course_id  CustomNullString `json:"course_id"`
+	Column_role       CustomNullString `json:"role"`
+	Column_username   CustomNullString `json:"username"`
 }
 
 type Table_login_ResponseAll struct {
-	Column_added_by   Fkey_login_added_by_All `json:"added_by"`
-	Column_branch_id  CustomNullString        `json:"branch_id"`
-	Column_college_id CustomNullString        `json:"college_id"`
-	Column_course_id  CustomNullString        `json:"course_id"`
-	Column_role       CustomNullString        `json:"role"`
-	Column_username   CustomNullString        `json:"username"`
+	Column_added_by   CustomNullString `json:"added_by"`
+	Column_branch_id  CustomNullString `json:"branch_id"`
+	Column_college_id CustomNullString `json:"college_id"`
+	Column_course_id  CustomNullString `json:"course_id"`
+	Column_role       CustomNullString `json:"role"`
+	Column_username   CustomNullString `json:"username"`
 }
 type CustomJwtClaims struct {
 	Username   string `json:"username"`
@@ -316,36 +201,18 @@ var Map_students = map[string]Column{
 }
 
 type Fkey_students_Branch_Id_PK struct {
-	Column_HoD         CustomNullString `json:"HoD"`
-	Column_Teachers    CustomNullString `json:"Teachers"`
-	Column_added_by    CustomNullString `json:"added_by"`
-	Column_college_id  CustomNullString `json:"college_id"`
-	Column_Branch_Id   CustomNullString `json:"Branch_Id"`
 	Column_Branch_Name CustomNullString `json:"Branch_Name"`
-	Column_Course_Id   CustomNullString `json:"Course_Id"`
+	Column_Branch_Id   CustomNullString `json:"Branch_Id"`
 }
 
 type Fkey_students_Course_Id_PK struct {
-	Column_added_by        CustomNullString `json:"added_by"`
-	Column_college_id      CustomNullString `json:"college_id"`
-	Column_Course_Id       CustomNullString `json:"Course_Id"`
-	Column_Course_Name     CustomNullString `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullString `json:"Lateral_Allowed"`
-}
-
-type Fkey_students_added_by_PK struct {
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
+	Column_Course_Id   CustomNullString `json:"Course_Id"`
+	Column_Course_Name CustomNullString `json:"Course_Name"`
 }
 
 type Fkey_students_college_id_PK struct {
-	Column_college_name CustomNullString `json:"college_name"`
-	Column_principal_id CustomNullString `json:"principal_id"`
 	Column_college_id   CustomNullString `json:"college_id"`
+	Column_college_name CustomNullString `json:"college_name"`
 }
 
 type Table_students_ResponsePK struct {
@@ -354,41 +221,23 @@ type Table_students_ResponsePK struct {
 	Column_Student_Father CustomNullString            `json:"Student_Father"`
 	Column_Student_Id     CustomNullInt               `json:"Student_Id"`
 	Column_Student_Name   CustomNullString            `json:"Student_Name"`
-	Column_added_by       Fkey_students_added_by_PK   `json:"added_by"`
+	Column_added_by       CustomNullString            `json:"added_by"`
 	Column_college_id     Fkey_students_college_id_PK `json:"college_id"`
 }
 
 type Fkey_students_Branch_Id_All struct {
-	Column_HoD         CustomNullString `json:"HoD"`
-	Column_Teachers    CustomNullString `json:"Teachers"`
-	Column_added_by    CustomNullString `json:"added_by"`
-	Column_college_id  CustomNullString `json:"college_id"`
-	Column_Branch_Id   CustomNullString `json:"Branch_Id"`
 	Column_Branch_Name CustomNullString `json:"Branch_Name"`
-	Column_Course_Id   CustomNullString `json:"Course_Id"`
+	Column_Branch_Id   CustomNullString `json:"Branch_Id"`
 }
 
 type Fkey_students_Course_Id_All struct {
-	Column_added_by        CustomNullString `json:"added_by"`
-	Column_college_id      CustomNullString `json:"college_id"`
-	Column_Course_Id       CustomNullString `json:"Course_Id"`
-	Column_Course_Name     CustomNullString `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullString `json:"Lateral_Allowed"`
-}
-
-type Fkey_students_added_by_All struct {
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
+	Column_Course_Id   CustomNullString `json:"Course_Id"`
+	Column_Course_Name CustomNullString `json:"Course_Name"`
 }
 
 type Fkey_students_college_id_All struct {
-	Column_college_name CustomNullString `json:"college_name"`
-	Column_principal_id CustomNullString `json:"principal_id"`
 	Column_college_id   CustomNullString `json:"college_id"`
+	Column_college_name CustomNullString `json:"college_name"`
 }
 
 type Table_students_ResponseAll struct {
@@ -397,7 +246,7 @@ type Table_students_ResponseAll struct {
 	Column_Student_Father CustomNullString             `json:"Student_Father"`
 	Column_Student_Id     CustomNullInt                `json:"Student_Id"`
 	Column_Student_Name   CustomNullString             `json:"Student_Name"`
-	Column_added_by       Fkey_students_added_by_All   `json:"added_by"`
+	Column_added_by       CustomNullString             `json:"added_by"`
 	Column_college_id     Fkey_students_college_id_All `json:"college_id"`
 }
 
@@ -462,85 +311,49 @@ var Map_subjects = map[string]Column{
 }
 
 type Fkey_subjects_Branch_Id_PK struct {
-	Column_Teachers    CustomNullString `json:"Teachers"`
-	Column_added_by    CustomNullString `json:"added_by"`
-	Column_college_id  CustomNullString `json:"college_id"`
 	Column_Branch_Id   CustomNullString `json:"Branch_Id"`
 	Column_Branch_Name CustomNullString `json:"Branch_Name"`
-	Column_Course_Id   CustomNullString `json:"Course_Id"`
-	Column_HoD         CustomNullString `json:"HoD"`
-}
-
-type Fkey_subjects_added_by_PK struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
 }
 
 type Fkey_subjects_college_id_PK struct {
 	Column_college_id   CustomNullString `json:"college_id"`
 	Column_college_name CustomNullString `json:"college_name"`
-	Column_principal_id CustomNullString `json:"principal_id"`
 }
 
 type Fkey_subjects_course_id_PK struct {
-	Column_Course_Id       CustomNullString `json:"Course_Id"`
-	Column_Course_Name     CustomNullString `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullString `json:"Lateral_Allowed"`
-	Column_added_by        CustomNullString `json:"added_by"`
-	Column_college_id      CustomNullString `json:"college_id"`
+	Column_Course_Id   CustomNullString `json:"Course_Id"`
+	Column_Course_Name CustomNullString `json:"Course_Name"`
 }
 
 type Table_subjects_ResponsePK struct {
 	Column_Branch_Id    Fkey_subjects_Branch_Id_PK  `json:"Branch_Id"`
 	Column_Subject_Id   CustomNullInt               `json:"Subject_Id"`
 	Column_Subject_Name CustomNullString            `json:"Subject_Name"`
-	Column_added_by     Fkey_subjects_added_by_PK   `json:"added_by"`
+	Column_added_by     CustomNullString            `json:"added_by"`
 	Column_college_id   Fkey_subjects_college_id_PK `json:"college_id"`
 	Column_course_id    Fkey_subjects_course_id_PK  `json:"course_id"`
 }
 
 type Fkey_subjects_Branch_Id_All struct {
-	Column_Teachers    CustomNullString `json:"Teachers"`
-	Column_added_by    CustomNullString `json:"added_by"`
-	Column_college_id  CustomNullString `json:"college_id"`
 	Column_Branch_Id   CustomNullString `json:"Branch_Id"`
 	Column_Branch_Name CustomNullString `json:"Branch_Name"`
-	Column_Course_Id   CustomNullString `json:"Course_Id"`
-	Column_HoD         CustomNullString `json:"HoD"`
-}
-
-type Fkey_subjects_added_by_All struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
 }
 
 type Fkey_subjects_college_id_All struct {
 	Column_college_id   CustomNullString `json:"college_id"`
 	Column_college_name CustomNullString `json:"college_name"`
-	Column_principal_id CustomNullString `json:"principal_id"`
 }
 
 type Fkey_subjects_course_id_All struct {
-	Column_Course_Id       CustomNullString `json:"Course_Id"`
-	Column_Course_Name     CustomNullString `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullString `json:"Lateral_Allowed"`
-	Column_added_by        CustomNullString `json:"added_by"`
-	Column_college_id      CustomNullString `json:"college_id"`
+	Column_Course_Id   CustomNullString `json:"Course_Id"`
+	Column_Course_Name CustomNullString `json:"Course_Name"`
 }
 
 type Table_subjects_ResponseAll struct {
 	Column_Branch_Id    Fkey_subjects_Branch_Id_All  `json:"Branch_Id"`
 	Column_Subject_Id   CustomNullInt                `json:"Subject_Id"`
 	Column_Subject_Name CustomNullString             `json:"Subject_Name"`
-	Column_added_by     Fkey_subjects_added_by_All   `json:"added_by"`
+	Column_added_by     CustomNullString             `json:"added_by"`
 	Column_college_id   Fkey_subjects_college_id_All `json:"college_id"`
 	Column_course_id    Fkey_subjects_course_id_All  `json:"course_id"`
 }
@@ -784,86 +597,41 @@ var Map_branches = map[string]Column{
 }
 
 type Fkey_branches_Course_Id_PK struct {
-	Column_Course_Name     CustomNullString `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullString `json:"Lateral_Allowed"`
-	Column_added_by        CustomNullString `json:"added_by"`
-	Column_college_id      CustomNullString `json:"college_id"`
-	Column_Course_Id       CustomNullString `json:"Course_Id"`
-}
-
-type Fkey_branches_HoD_PK struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-}
-
-type Fkey_branches_added_by_PK struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
+	Column_Course_Id   CustomNullString `json:"Course_Id"`
+	Column_Course_Name CustomNullString `json:"Course_Name"`
 }
 
 type Fkey_branches_college_id_PK struct {
 	Column_college_id   CustomNullString `json:"college_id"`
 	Column_college_name CustomNullString `json:"college_name"`
-	Column_principal_id CustomNullString `json:"principal_id"`
 }
 
 type Table_branches_ResponsePK struct {
 	Column_Branch_Id   CustomNullString            `json:"Branch_Id"`
 	Column_Branch_Name CustomNullString            `json:"Branch_Name"`
 	Column_Course_Id   Fkey_branches_Course_Id_PK  `json:"Course_Id"`
-	Column_HoD         Fkey_branches_HoD_PK        `json:"HoD"`
+	Column_HoD         CustomNullString            `json:"HoD"`
 	Column_Teachers    []CustomNullString          `json:"Teachers"`
-	Column_added_by    Fkey_branches_added_by_PK   `json:"added_by"`
+	Column_added_by    CustomNullString            `json:"added_by"`
 	Column_college_id  Fkey_branches_college_id_PK `json:"college_id"`
 }
 
 type Fkey_branches_Course_Id_All struct {
-	Column_Course_Name     CustomNullString `json:"Course_Name"`
-	Column_Lateral_Allowed CustomNullString `json:"Lateral_Allowed"`
-	Column_added_by        CustomNullString `json:"added_by"`
-	Column_college_id      CustomNullString `json:"college_id"`
-	Column_Course_Id       CustomNullString `json:"Course_Id"`
-}
-
-type Fkey_branches_HoD_All struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-}
-
-type Fkey_branches_added_by_All struct {
-	Column_role       CustomNullString `json:"role"`
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
+	Column_Course_Id   CustomNullString `json:"Course_Id"`
+	Column_Course_Name CustomNullString `json:"Course_Name"`
 }
 
 type Fkey_branches_college_id_All struct {
 	Column_college_id   CustomNullString `json:"college_id"`
 	Column_college_name CustomNullString `json:"college_name"`
-	Column_principal_id CustomNullString `json:"principal_id"`
 }
 
 type Table_branches_ResponseAll struct {
 	Column_Branch_Id   CustomNullString             `json:"Branch_Id"`
 	Column_Branch_Name CustomNullString             `json:"Branch_Name"`
 	Column_Course_Id   Fkey_branches_Course_Id_All  `json:"Course_Id"`
-	Column_HoD         Fkey_branches_HoD_All        `json:"HoD"`
+	Column_HoD         CustomNullString             `json:"HoD"`
 	Column_Teachers    []CustomNullString           `json:"Teachers"`
-	Column_added_by    Fkey_branches_added_by_All   `json:"added_by"`
 	Column_college_id  Fkey_branches_college_id_All `json:"college_id"`
 }
 
@@ -900,32 +668,92 @@ var Map_college = map[string]Column{
 	},
 }
 
-type Fkey_college_principal_id_PK struct {
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-	Column_role       CustomNullString `json:"role"`
-}
-
 type Table_college_ResponsePK struct {
-	Column_college_id   CustomNullString             `json:"college_id"`
-	Column_college_name CustomNullString             `json:"college_name"`
-	Column_principal_id Fkey_college_principal_id_PK `json:"principal_id"`
-}
-
-type Fkey_college_principal_id_All struct {
-	Column_username   CustomNullString `json:"username"`
-	Column_added_by   CustomNullString `json:"added_by"`
-	Column_branch_id  CustomNullString `json:"branch_id"`
-	Column_college_id CustomNullString `json:"college_id"`
-	Column_course_id  CustomNullString `json:"course_id"`
-	Column_role       CustomNullString `json:"role"`
+	Column_college_id   CustomNullString `json:"college_id"`
+	Column_college_name CustomNullString `json:"college_name"`
+	Column_principal_id CustomNullString `json:"principal_id"`
 }
 
 type Table_college_ResponseAll struct {
-	Column_college_id   CustomNullString              `json:"college_id"`
-	Column_college_name CustomNullString              `json:"college_name"`
-	Column_principal_id Fkey_college_principal_id_All `json:"principal_id"`
+	Column_college_id   CustomNullString `json:"college_id"`
+	Column_college_name CustomNullString `json:"college_name"`
+	Column_principal_id CustomNullString `json:"principal_id"`
+}
+
+type Table_courses struct {
+	Column_Course_Id       CustomNullString `json:"Course_Id"`
+	Column_Course_Name     CustomNullString `json:"Course_Name"`
+	Column_Lateral_Allowed CustomNullBool   `json:"Lateral_Allowed"`
+	Column_added_by        CustomNullString `json:"added_by"`
+	Column_college_id      CustomNullString `json:"college_id"`
+}
+
+var Map_courses = map[string]Column{
+
+	"Course_Id": {
+		ColumnName: "Course_Id",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+
+	"Course_Name": {
+		ColumnName: "Course_Name",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+
+	"Lateral_Allowed": {
+		ColumnName: "Lateral_Allowed",
+		DataType:   "CustomNullBool",
+		NotNull:    false,
+		pgType:     "boolean",
+		Hash:       false,
+	},
+
+	"added_by": {
+		ColumnName: "added_by",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+
+	"college_id": {
+		ColumnName: "college_id",
+		DataType:   "CustomNullString",
+		NotNull:    true,
+		pgType:     "text",
+		Hash:       false,
+	},
+}
+
+type Fkey_courses_college_id_PK struct {
+	Column_college_id   CustomNullString `json:"college_id"`
+	Column_college_name CustomNullString `json:"college_name"`
+	Column_principal_id CustomNullString `json:"principal_id"`
+}
+
+type Table_courses_ResponsePK struct {
+	Column_Course_Id       CustomNullString           `json:"Course_Id"`
+	Column_Course_Name     CustomNullString           `json:"Course_Name"`
+	Column_Lateral_Allowed CustomNullBool             `json:"Lateral_Allowed"`
+	Column_added_by        CustomNullString           `json:"added_by"`
+	Column_college_id      Fkey_courses_college_id_PK `json:"college_id"`
+}
+
+type Fkey_courses_college_id_All struct {
+	Column_college_id   CustomNullString `json:"college_id"`
+	Column_college_name CustomNullString `json:"college_name"`
+}
+
+type Table_courses_ResponseAll struct {
+	Column_Course_Id       CustomNullString            `json:"Course_Id"`
+	Column_Course_Name     CustomNullString            `json:"Course_Name"`
+	Column_Lateral_Allowed CustomNullBool              `json:"Lateral_Allowed"`
+	Column_added_by        CustomNullString            `json:"added_by"`
+	Column_college_id      Fkey_courses_college_id_All `json:"college_id"`
 }

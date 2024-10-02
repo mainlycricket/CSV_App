@@ -219,20 +219,26 @@ func validateSignedToken(signedToken string) (jwt.MapClaims, error) {
 }
 
 func authorizeRequest(r *http.Request, allowedRoles []string) (jwt.MapClaims, error) {
+	emptyClaim := jwt.MapClaims{
+		"username": "",
+
+		"role":       "",
+		"college_id": "", "course_id": "", "branch_id": ""}
+
 	cookie, err := r.Cookie("access_token")
 	if err != nil {
-		return nil, err
+		return emptyClaim, err
 	}
 
 	claims, err := validateSignedToken(cookie.Value)
 	if err != nil {
-		return nil, err
+		return emptyClaim, err
 	}
 
 	role := claims["role"].(string)
 
-	if allowedRoles != nil && !slices.Contains(allowedRoles, role) {
-		return nil, fmt.Errorf("%s role is not authorized", role)
+	if len(allowedRoles) > 0 && !slices.Contains(allowedRoles, role) {
+		return emptyClaim, fmt.Errorf("%s role is not authorized", role)
 	}
 
 	return claims, nil

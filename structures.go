@@ -57,7 +57,7 @@ type AuthInfo struct {
 	OrgFields       map[string]string   `json:"orgFields"`
 	BasicAuth       bool                `json:"basicAuth"`
 	AllowedRoles    []string            `json:"allowedRoles"`
-	Priviliges      map[string][]string `json:"priviliges"`
+	Privileges      map[string][]string `json:"privileges"`
 	ProtectedFields ProtectedFieldsInfo `json:"protectedFields"`
 }
 

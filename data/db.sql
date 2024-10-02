@@ -117,6 +117,54 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- text Array Validator Function
+CREATE FUNCTION validate_text_arr(
+    arr text[] DEFAULT NULL,
+    not_null boolean DEFAULT FALSE,
+    min_arr_len integer DEFAULT NULL,
+    max_arr_len integer DEFAULT NULL,
+    
+    min_ind integer DEFAULT NULL, 
+    max_ind integer DEFAULT NULL,
+    
+    enum_arr text[] DEFAULT NULL)
+RETURNS text AS $$
+DECLARE
+    val text;
+BEGIN
+    IF arr IS NULL AND not_null THEN
+        RETURN 'Empty Array';
+    END IF;
+
+    IF arr IS NULL THEN
+        RETURN '';
+    END IF;
+
+    IF min_arr_len IS NOT NULL AND array_length(arr, 1) < min_arr_len THEN
+        RETURN FORMAT('Array length should be at least %s', min_arr_len);
+    END IF;
+
+    IF max_arr_len IS NOT NULL AND array_length(arr, 1) > max_arr_len THEN
+        RETURN FORMAT('Array length should be at most %s', max_arr_len);
+    END IF;
+
+    FOREACH val IN ARRAY arr LOOP
+        IF min_ind IS NOT NULL AND LENGTH(val::text) < min_ind THEN
+            RETURN FORMAT('Each element length should be at least %s', min_ind);
+        END IF;
+
+        IF max_ind IS NOT NULL AND LENGTH(val::text) > max_ind THEN
+            RETURN FORMAT('Each element length should be at most %s', max_ind);
+        END IF;
+
+        IF enum_arr IS NOT NULL AND val::text NOT IN (SELECT * FROM unnest(enum_arr)) THEN
+            RETURN FORMAT('%s element not present in enums', val);
+        END IF;
+    END LOOP;
+    RETURN '';
+END;
+$$ LANGUAGE plpgsql;
+
 -- date Array Validator Function
 CREATE FUNCTION validate_date_arr(
     arr date[] DEFAULT NULL,
@@ -213,54 +261,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- time Array Validator Function
-CREATE FUNCTION validate_time_arr(
-    arr time[] DEFAULT NULL,
-    not_null boolean DEFAULT FALSE,
-    min_arr_len integer DEFAULT NULL,
-    max_arr_len integer DEFAULT NULL,
-    
-    min_ind time DEFAULT NULL, 
-    max_ind time DEFAULT NULL,
-    
-    enum_arr time[] DEFAULT NULL)
-RETURNS text AS $$
-DECLARE
-    val time;
-BEGIN
-    IF arr IS NULL AND not_null THEN
-        RETURN 'Empty Array';
-    END IF;
-
-    IF arr IS NULL THEN
-        RETURN '';
-    END IF;
-
-    IF min_arr_len IS NOT NULL AND array_length(arr, 1) < min_arr_len THEN
-        RETURN FORMAT('Array length should be at least %s', min_arr_len);
-    END IF;
-
-    IF max_arr_len IS NOT NULL AND array_length(arr, 1) > max_arr_len THEN
-        RETURN FORMAT('Array length should be at most %s', max_arr_len);
-    END IF;
-
-    FOREACH val IN ARRAY arr LOOP
-        IF min_ind IS NOT NULL AND val < min_ind THEN
-            RETURN FORMAT('Each element value should be at least %s', min_ind);
-        END IF;
-
-        IF max_ind IS NOT NULL AND val > max_ind THEN
-            RETURN FORMAT('Each element value should be at most %s', max_ind);
-        END IF;
-
-        IF enum_arr IS NOT NULL AND val NOT IN (SELECT * FROM unnest(enum_arr)) THEN
-            RETURN FORMAT('%s element not present in enums', val);
-        END IF;
-    END LOOP;
-    RETURN '';
-END;
-$$ LANGUAGE plpgsql;
-
 -- integer Array Validator Function
 CREATE FUNCTION validate_integer_arr(
     arr integer[] DEFAULT NULL,
@@ -309,20 +309,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- text Array Validator Function
-CREATE FUNCTION validate_text_arr(
-    arr text[] DEFAULT NULL,
+-- time Array Validator Function
+CREATE FUNCTION validate_time_arr(
+    arr time[] DEFAULT NULL,
     not_null boolean DEFAULT FALSE,
     min_arr_len integer DEFAULT NULL,
     max_arr_len integer DEFAULT NULL,
     
-    min_ind integer DEFAULT NULL, 
-    max_ind integer DEFAULT NULL,
+    min_ind time DEFAULT NULL, 
+    max_ind time DEFAULT NULL,
     
-    enum_arr text[] DEFAULT NULL)
+    enum_arr time[] DEFAULT NULL)
 RETURNS text AS $$
 DECLARE
-    val text;
+    val time;
 BEGIN
     IF arr IS NULL AND not_null THEN
         RETURN 'Empty Array';
@@ -341,15 +341,15 @@ BEGIN
     END IF;
 
     FOREACH val IN ARRAY arr LOOP
-        IF min_ind IS NOT NULL AND LENGTH(val::text) < min_ind THEN
-            RETURN FORMAT('Each element length should be at least %s', min_ind);
+        IF min_ind IS NOT NULL AND val < min_ind THEN
+            RETURN FORMAT('Each element value should be at least %s', min_ind);
         END IF;
 
-        IF max_ind IS NOT NULL AND LENGTH(val::text) > max_ind THEN
-            RETURN FORMAT('Each element length should be at most %s', max_ind);
+        IF max_ind IS NOT NULL AND val > max_ind THEN
+            RETURN FORMAT('Each element value should be at most %s', max_ind);
         END IF;
 
-        IF enum_arr IS NOT NULL AND val::text NOT IN (SELECT * FROM unnest(enum_arr)) THEN
+        IF enum_arr IS NOT NULL AND val NOT IN (SELECT * FROM unnest(enum_arr)) THEN
             RETURN FORMAT('%s element not present in enums', val);
         END IF;
     END LOOP;
@@ -406,6 +406,20 @@ BEFORE INSERT OR UPDATE ON "TypeTest"
 FOR EACH ROW
 EXECUTE FUNCTION validate_TypeTest_trigger();
 
+-- DATA INSERTION "college"
+INSERT INTO "college" ("college_id", "college_name", "principal_id")
+VALUES
+('college_1', 'IIT Delhi', 'jethalal');
+
+-- DATA INSERTION "subjects"
+INSERT INTO "subjects" ("Subject_Id", "Subject_Name", "college_id", "course_id", "Branch_Id", "added_by")
+VALUES
+(1, 'DS', 'college_1', 'course_1', 'branch_1', 'cs_hod'),
+(2, 'COA', 'college_1', 'course_1', 'branch_1', 'jethalal'),
+(3, 'WT', 'college_1', 'course_1', 'branch_2', 'it_hod'),
+(4, 'Java', 'college_1', 'course_1', 'branch_2', 'jethalal'),
+(5, 'RCC', 'college_1', 'course_1', 'branch_3', 'civil_hod');
+
 -- DATA INSERTION "courses"
 INSERT INTO "courses" ("Course_Id", "college_id", "Course_Name", "Lateral_Allowed", "added_by")
 VALUES
@@ -420,14 +434,12 @@ VALUES
 (3, 'Saurabh', 'Jagganath', 'college_1', 'course_1', 'branch_2', 'it_hod'),
 (4, 'Harsh', 'Ramesh', 'college_1', 'course_1', 'branch_3', 'civil_hod');
 
--- DATA INSERTION "subjects"
-INSERT INTO "subjects" ("Subject_Id", "Subject_Name", "college_id", "course_id", "Branch_Id", "added_by")
+-- DATA INSERTION "branches"
+INSERT INTO "branches" ("Branch_Id", "Branch_Name", "college_id", "Course_Id", "Teachers", "added_by", "HoD")
 VALUES
-(1, 'DS', 'college_1', 'course_1', 'branch_1', 'cs_hod'),
-(2, 'COA', 'college_1', 'course_1', 'branch_1', 'jethalal'),
-(3, 'WT', 'college_1', 'course_1', 'branch_2', 'it_hod'),
-(4, 'Java', 'college_1', 'course_1', 'branch_2', 'jethalal'),
-(5, 'RCC', 'college_1', 'course_1', 'branch_3', 'civil_hod');
+('branch_1', 'Computer Science', 'college_1', 'course_1', array['HA', 'PC']::text[], 'jethalal', 'cs_hod'),
+('branch_2', 'Information Technology', 'college_1', 'course_1', array['LD', 'RK']::text[], 'jethalal', 'it_hod'),
+('branch_3', 'Civil Engineering', 'college_1', 'course_1', NULL, 'jethalal', 'civil_hod');
 
 -- DATA INSERTION "TypeTest"
 INSERT INTO "TypeTest" ("Int", "String", "Float", "Date", "Time", "DateTime", "Bool", "Int_Arr", "Str_Arr", "Float_arr", "Date_arr", "Time_Arr", "Datetime_Arr", "Bool_Arr")
@@ -437,26 +449,14 @@ VALUES
 (1, 'Ram', 4.1, '2024-01-01', '14:30:00', NULL, true, array[1, 2]::integer[], NULL, array[4.5, 4.61]::real[], array['2024-07-01', '2024-07-01']::date[], array['14:30:00', '14:30:00']::time[], array['2024-07-01T12:30:00+05:30', '2024-07-01T12:30:00+05:30']::timestamptz[], array[true, false]::boolean[]),
 (1, NULL, 4.1, '2024-01-01', '14:30:00', NULL, true, array[1, 2]::integer[], array[]::text[], array[4.5, 4.61]::real[], array['2024-07-01', '2024-07-01']::date[], array['14:30:00', '14:30:00']::time[], array['2024-07-01T12:30:00+05:30', '2024-07-01T12:30:00+05:30']::timestamptz[], array[true, false]::boolean[]);
 
--- DATA INSERTION "branches"
-INSERT INTO "branches" ("Branch_Id", "Branch_Name", "college_id", "Course_Id", "Teachers", "added_by", "HoD")
-VALUES
-('branch_1', 'Computer Science', 'college_1', 'course_1', array['HA', 'PC']::text[], 'jethalal', 'cs_hod'),
-('branch_2', 'Information Technology', 'college_1', 'course_1', array['LD', 'RK']::text[], 'jethalal', 'it_hod'),
-('branch_3', 'Civil Engineering', 'college_1', 'course_1', NULL, 'jethalal', 'civil_hod');
-
--- DATA INSERTION "college"
-INSERT INTO "college" ("college_id", "college_name", "principal_id")
-VALUES
-('college_1', 'IIT Delhi', 'jethalal');
-
 -- DATA INSERTION "login"
 INSERT INTO "login" ("username", "password", "role", "college_id", "course_id", "branch_id", "added_by")
 VALUES
-('superuser', '$2a$10$6swLGf8Wnc6B1BbEJJ/nKOltNDzeIZMsFmoj1d2aKQxrW.bI5W5.K', 'admin', NULL, NULL, NULL, NULL),
-('jethalal', '$2a$10$AqigQlNXMRmnzgRjM3K5FeO8vNxlYZScF3xOkPg0GUO81ZSQI7BPK', 'principal', 'college_1', NULL, NULL, 'superuser'),
-('cs_hod', '$2a$10$g1bpVtHOoLZKCizEOLUCv.cCLxqE6No/olZ0ZwDi5GcHcelMoAZQC', 'hod', 'college_1', 'course_1', 'branch_1', 'jethalal'),
-('it_hod', '$2a$10$tCOpxP85yQdwFYXBavceNOEhkXMNyRYVrWVB8aTVy76yPjwLfAA3W', 'hod', 'college_1', 'course_1', 'branch_2', 'jethalal'),
-('civil_hod', '$2a$10$WmaGeAuWg.1DuheYL1HPZu3SrPbNwXYP1dLBl9n494iVvlipM1uEC', 'hod', 'college_1', 'course_1', 'branch_3', 'jethalal');
+('superuser', '$2a$10$AP/OqoTkIcW2Ku8PGyQRF.X797PY1P5rbxgfs7CviNcfAXrb3Qryy', 'admin', NULL, NULL, NULL, NULL),
+('jethalal', '$2a$10$mkRVU8LrXlwE49/XrikKAuX6UsQkJsBnBc3jcws.btiCT5x9z/eoO', 'principal', 'college_1', NULL, NULL, 'superuser'),
+('cs_hod', '$2a$10$3KYwMX5c36pER8RL.L317.pc3D.eorcpbprhNB2NNuCSAiXuMCp7y', 'hod', 'college_1', 'course_1', 'branch_1', 'jethalal'),
+('it_hod', '$2a$10$cOW7cnvwnlGDcQ3MDS2OXe0Gj5xHCJlql12yvlYmX/z6taLSfDP.S', 'hod', 'college_1', 'course_1', 'branch_2', 'jethalal'),
+('civil_hod', '$2a$10$xiF3YR7zKZMwZmFHQFXX4.3q3hu9QGFkeC4L3xp937TkX/mQOg3Dq', 'hod', 'college_1', 'course_1', 'branch_3', 'jethalal');
 
 -- branches Table Foreign Keys
 ALTER TABLE "branches"
